@@ -28,7 +28,7 @@
   }
 
   #app {
-    max-width: 1200px;
+    max-width: 1300px;
     margin: 0 auto;
     display: flex;
     flex-wrap: wrap;
@@ -37,7 +37,7 @@
   }
 
   #map-wrap {
-    flex: 1 1 620px;
+    flex: 1 1 700px;
     min-width: 320px;
   }
 
@@ -54,11 +54,17 @@
     margin: 8px 0 0;
   }
 
+  #map-status {
+    font-size: 12px;
+    color: var(--sub);
+    margin: 0 0 8px;
+  }
+
   svg#hyogo-map {
     width: 100%;
     height: auto;
     display: block;
-    max-height: 900px;
+    max-height: 980px;
   }
 
   .pref-shape {
@@ -74,32 +80,45 @@
   .point circle {
     fill: var(--marker);
     stroke: #fff;
-    stroke-width: 2;
+    stroke-width: 1.5;
     transition: r 0.15s ease, fill 0.15s ease;
   }
 
+  .point.awaji circle {
+    fill: #3d7ea6;
+  }
+
   .point:hover circle {
-    r: 9;
+    r: 8;
   }
 
   .point.is-selected circle {
     fill: var(--marker-active);
-    r: 10;
+    r: 9;
   }
 
-  .point text {
-    font-size: 13px;
-    fill: var(--text);
+  .point .label {
+    font-size: 11px;
     font-weight: 600;
+    fill: var(--text);
     paint-order: stroke;
     stroke: #f7f5f1;
-    stroke-width: 4px;
+    stroke-width: 3px;
+    pointer-events: none;
+  }
+
+  .point .chip {
+    font-size: 10px;
+    fill: var(--sub);
+    paint-order: stroke;
+    stroke: #f7f5f1;
+    stroke-width: 3px;
     pointer-events: none;
   }
 
   /* ---- 天気パネル ---- */
   #weather-panel {
-    flex: 1 1 320px;
+    flex: 1 1 300px;
     min-width: 280px;
     background: var(--panel-bg);
     border: 1px solid var(--line);
@@ -124,23 +143,6 @@
     font-size: 13px;
     color: var(--sub);
     line-height: 1.6;
-  }
-
-  #point-list {
-    list-style: none;
-    margin: 12px 0 0;
-    padding: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  #point-list li {
-    font-size: 12px;
-    padding: 4px 10px;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    color: var(--sub);
   }
 
   #forecast-list {
@@ -189,6 +191,14 @@
 
   .forecast-temp .max { color: var(--accent); font-weight: 600; }
   .forecast-temp .min { color: #5a8fc7; }
+
+  .legend {
+    font-size: 11px;
+    color: var(--sub);
+    margin-top: 6px;
+  }
+  .legend span { margin-right: 14px; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; vertical-align:middle; }
 </style>
 </head>
 <body>
@@ -196,15 +206,21 @@
 <div id="app">
   <div id="map-wrap">
     <h1>兵庫県 — 地点別 天気マップ</h1>
+    <div id="map-status">天気データを読み込み中...</div>
     <svg id="hyogo-map" viewBox="0 0 700 900"></svg>
-    <p id="map-hint">地図上の丸をクリックすると、その地点の天気予報が表示されます。</p>
+    <p id="map-hint">
+      各地点に今日の天気が表示されています。クリックすると7日間の予報が見られます。
+    </p>
+    <div class="legend">
+      <span><span class="dot" style="background:#2f6f5e"></span>本土</span>
+      <span><span class="dot" style="background:#3d7ea6"></span>淡路島</span>
+    </div>
   </div>
 
   <div id="weather-panel">
     <div id="weather-placeholder">
-      地図上の地点をクリックしてください。<br><br>
-      収録地点：
-      <ul id="point-list"></ul>
+      地図上の地点をクリックすると、7日間の予報を表示します。<br>
+      （地図上には今日の天気だけ簡易表示しています）
     </div>
     <div id="weather-content" style="display:none;">
       <h2 id="weather-title"></h2>
@@ -220,23 +236,26 @@
 (async function () {
   const svg = d3.select("#hyogo-map");
   const width = 700, height = 900;
+  const statusEl = document.getElementById("map-status");
 
-  // 兵庫県内の代表地点（緯度・経度）。必要に応じて追加/変更可能。
+  // 兵庫県内の地点。淡路島は北〜南までカバーするよう多めに配置。
   const POINTS = [
-    { name: "神戸市",     lat: 34.6901, lon: 135.1955, note: "県庁所在地・瀬戸内海側" },
-    { name: "姫路市",     lat: 34.8154, lon: 134.6853, note: "西部の中心都市" },
-    { name: "豊岡市",     lat: 35.5372, lon: 134.8236, note: "北部・日本海側" },
-    { name: "洲本市",     lat: 34.3427, lon: 134.8991, note: "淡路島" },
-    { name: "西宮市",     lat: 34.7376, lon: 135.3416, note: "阪神間" },
-    { name: "丹波篠山市", lat: 35.0725, lon: 135.2167, note: "内陸・盆地" }
+    // 本土
+    { name: "神戸市",       lat: 34.6901, lon: 135.1955, note: "県庁所在地・瀬戸内海側", awaji: false, dx: 10, dy: -2 },
+    { name: "姫路市",       lat: 34.8154, lon: 134.6853, note: "西部の中心都市",         awaji: false, dx: -60, dy: -2 },
+    { name: "豊岡市",       lat: 35.5372, lon: 134.8236, note: "北部・日本海側",         awaji: false, dx: 10, dy: -2 },
+    { name: "西宮市",       lat: 34.7376, lon: 135.3416, note: "阪神間",                 awaji: false, dx: 10, dy: -2 },
+    { name: "丹波篠山市",   lat: 35.0725, lon: 135.2167, note: "内陸・盆地",             awaji: false, dx: 10, dy: -2 },
+    // 淡路島（北→南）
+    { name: "岩屋",         lat: 34.5115, lon: 134.9319, note: "淡路島最北端",           awaji: true, dx: 10, dy: -2 },
+    { name: "淡路市役所",   lat: 34.4353, lon: 134.9098, note: "淡路市（東浦）",         awaji: true, dx: 10, dy: 14 },
+    { name: "北淡",         lat: 34.4917, lon: 134.8735, note: "淡路市（北部）",         awaji: true, dx: -70, dy: -2 },
+    { name: "洲本市",       lat: 34.3427, lon: 134.8991, note: "淡路島の中心",           awaji: true, dx: 10, dy: -2 },
+    { name: "五色",         lat: 34.3733, lon: 134.8233, note: "洲本市（西海岸）",       awaji: true, dx: -50, dy: -2 },
+    { name: "南あわじ市役所", lat: 34.2596, lon: 134.7833, note: "南あわじ市（志筑）",   awaji: true, dx: 10, dy: -2 },
+    { name: "阿万",         lat: 34.2508, lon: 134.8422, note: "南あわじ市（東海岸）",   awaji: true, dx: 10, dy: 14 },
+    { name: "福良",         lat: 34.2306, lon: 134.7847, note: "淡路島最南端",           awaji: true, dx: 10, dy: 14 }
   ];
-
-  const pointListEl = document.getElementById("point-list");
-  POINTS.forEach(p => {
-    const li = document.createElement("li");
-    li.textContent = `${p.name}（${p.note}）`;
-    pointListEl.appendChild(li);
-  });
 
   const WCODE = {
     0:["☀️","快晴"],1:["🌤️","晴れ"],2:["⛅","晴れ時々曇り"],3:["☁️","曇り"],
@@ -257,46 +276,57 @@
   const subEl = document.getElementById("weather-sub");
   const listEl = document.getElementById("forecast-list");
 
-  async function showWeather(point) {
+  function renderPanel(point) {
     placeholder.style.display = "none";
     content.style.display = "block";
     titleEl.textContent = point.name;
-    subEl.textContent = "読み込み中...";
     listEl.innerHTML = "";
 
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${point.lat}&longitude=${point.lon}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&forecast_days=7`;
-
-    try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const data = await res.json();
-      const d = data.daily;
-
-      subEl.textContent = `${point.note} の7日間予報（Open-Meteo）`;
-
-      d.time.forEach((dateStr, i) => {
-        const date = new Date(dateStr + "T00:00:00");
-        const mm = date.getMonth() + 1;
-        const dd = date.getDate();
-        const dow = weekdays[date.getDay()];
-        const code = d.weathercode[i];
-        const [icon, desc] = WCODE[code] || ["❓", "不明"];
-        const tmax = Math.round(d.temperature_2m_max[i]);
-        const tmin = Math.round(d.temperature_2m_min[i]);
-
-        const row = document.createElement("div");
-        row.className = "forecast-row";
-        row.innerHTML = `
-          <div class="forecast-date">${mm}/${dd}<div class="dow">${dow}曜日${i === 0 ? "（今日）" : ""}</div></div>
-          <div class="forecast-icon">${icon}</div>
-          <div class="forecast-desc">${desc}</div>
-          <div class="forecast-temp"><span class="max">${tmax}°</span> / <span class="min">${tmin}°</span></div>
-        `;
-        listEl.appendChild(row);
-      });
-    } catch (err) {
-      subEl.textContent = "天気データの取得に失敗しました: " + err.message;
+    if (!point._daily) {
+      subEl.textContent = "天気データを取得できませんでした。";
+      return;
     }
+
+    subEl.textContent = `${point.note} の7日間予報（Open-Meteo）`;
+    const d = point._daily;
+
+    d.time.forEach((dateStr, i) => {
+      const date = new Date(dateStr + "T00:00:00");
+      const mm = date.getMonth() + 1;
+      const dd = date.getDate();
+      const dow = weekdays[date.getDay()];
+      const code = d.weathercode[i];
+      const [icon, desc] = WCODE[code] || ["❓", "不明"];
+      const tmax = Math.round(d.temperature_2m_max[i]);
+      const tmin = Math.round(d.temperature_2m_min[i]);
+
+      const label = i === 0 ? "（今日）" : i === 1 ? "（明日）" : "";
+      const row = document.createElement("div");
+      row.className = "forecast-row";
+      row.innerHTML = `
+        <div class="forecast-date">${mm}/${dd}<div class="dow">${dow}曜日${label}</div></div>
+        <div class="forecast-icon">${icon}</div>
+        <div class="forecast-desc">${desc}</div>
+        <div class="forecast-temp"><span class="max">${tmax}°</span> / <span class="min">${tmin}°</span></div>
+      `;
+      listEl.appendChild(row);
+    });
+  }
+
+  async function fetchAllWeather(points) {
+    const lats = points.map(p => p.lat).join(",");
+    const lons = points.map(p => p.lon).join(",");
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&forecast_days=7`;
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+
+    // 複数地点の場合は配列で返る
+    const results = Array.isArray(data) ? data : [data];
+    results.forEach((r, i) => {
+      points[i]._daily = r.daily;
+    });
   }
 
   try {
@@ -325,22 +355,46 @@
     const pointSel = pointsG.selectAll("g.point")
       .data(POINTS)
       .join("g")
-      .attr("class", "point")
+      .attr("class", d => "point" + (d.awaji ? " awaji" : ""))
       .attr("transform", d => {
         const [x, y] = projection([d.lon, d.lat]);
+        d._x = x; d._y = y;
         return `translate(${x},${y})`;
       })
       .on("click", function (event, d) {
         svg.selectAll(".point").classed("is-selected", false);
         d3.select(this).classed("is-selected", true);
-        showWeather(d);
+        renderPanel(d);
       });
 
-    pointSel.append("circle").attr("r", 7);
+    pointSel.append("circle").attr("r", 5.5);
     pointSel.append("text")
-      .attr("x", 12)
-      .attr("y", 4)
+      .attr("class", "label")
+      .attr("x", d => d.dx)
+      .attr("y", d => d.dy)
       .text(d => d.name);
+
+    const chipText = pointSel.append("text")
+      .attr("class", "chip")
+      .attr("x", d => d.dx)
+      .attr("y", d => d.dy + 12)
+      .text("...");
+
+    // 全地点まとめて天気を取得 → 地図上に今日の天気を表示
+    try {
+      await fetchAllWeather(POINTS);
+      chipText.text(d => {
+        if (!d._daily) return "?";
+        const code = d._daily.weathercode[0];
+        const [icon] = WCODE[code] || ["❓"];
+        const tmax = Math.round(d._daily.temperature_2m_max[0]);
+        const tmin = Math.round(d._daily.temperature_2m_min[0]);
+        return `${icon} ${tmax}/${tmin}°`;
+      });
+      statusEl.remove();
+    } catch (err) {
+      statusEl.textContent = "天気データの取得に失敗しました: " + err.message;
+    }
 
   } catch (err) {
     document.getElementById("map-hint").textContent =
