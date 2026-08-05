@@ -443,9 +443,8 @@
     #breaking-bar{background:var(--accent);color:#fff;font-size:.82rem;display:flex;align-items:center;overflow:hidden;height:36px}
     #breaking-bar.hidden{display:none}
     .breaking-label{padding:0 1rem;height:100%;display:flex;align-items:center;white-space:nowrap;font-weight:700;font-size:.75rem;letter-spacing:.1em;flex-shrink:0;background:#1a4535;min-width:70px;justify-content:center}
-    .breaking-scroll{overflow:hidden;flex:1;height:100%}
-    .breaking-inner{display:flex;align-items:center;height:100%;gap:3rem;animation:bScroll 30s linear infinite;white-space:nowrap;padding-left:100%}
-    @keyframes bScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+    .breaking-scroll{overflow:hidden;flex:1;height:100%;position:relative}
+    .breaking-inner{position:absolute;top:0;left:0;display:flex;align-items:center;height:100%;gap:3rem;white-space:nowrap;will-change:transform}
 
     .breaking-sep{color:rgba(255,255,255,.4)}
 
@@ -1043,11 +1042,39 @@
   }
 
   /* ---- 速報バー読み込み ---- */
-  function restartBreakingAnimation(){
-    var inner=document.getElementById('breaking-inner');
-    inner.style.animation='none';
-    void inner.offsetWidth; /* 強制リフローでアニメーションを最初からリセット */
-    inner.style.animation='';
+  /* CSSの%指定によるアニメーションは、Webフォントの読み込みやウィンドウ幅の変化で
+     テキスト幅がずれた瞬間にカクつく／止まって見える問題があったため、
+     実際のピクセル幅を計測してWeb Animations APIで動かす方式に変更。 */
+  var _breakingAnim = null;
+  var BREAKING_SPEED_PX_PER_SEC = 60; /* 流れる速さ（大きいほど速い） */
+
+  function runBreakingMarquee(){
+    var inner = document.getElementById('breaking-inner');
+    if(!inner) return;
+    if(_breakingAnim){ try{ _breakingAnim.cancel(); }catch(e){} _breakingAnim=null; }
+    /* breaking-innerの中身は同じ内容を2セット連結してある（html+html）ので、
+       全体幅の半分＝1セット分の実測幅だけ動かせば継ぎ目なくループできる */
+    var halfWidth = inner.scrollWidth / 2;
+    if(!halfWidth || !isFinite(halfWidth)) return;
+    var duration = Math.max(4000, (halfWidth / BREAKING_SPEED_PX_PER_SEC) * 1000);
+    inner.style.transform = 'translateX(0px)';
+    if(typeof inner.animate !== 'function') return; /* Web Animations API非対応ブラウザは静止表示のまま */
+    _breakingAnim = inner.animate(
+      [ { transform:'translateX(0px)' }, { transform:'translateX(-'+halfWidth+'px)' } ],
+      { duration:duration, iterations:Infinity, easing:'linear' }
+    );
+  }
+
+  var _breakingResizeTimer=null;
+  window.addEventListener('resize', function(){
+    clearTimeout(_breakingResizeTimer);
+    _breakingResizeTimer = setTimeout(function(){
+      if(!document.getElementById('breaking-bar').classList.contains('hidden')) runBreakingMarquee();
+    }, 250);
+  });
+  /* Webフォント読み込み完了後にも文字幅が変わるため再計測 */
+  if(document.fonts && document.fonts.ready){
+    document.fonts.ready.then(function(){ runBreakingMarquee(); }).catch(function(){});
   }
 
   async function loadBreaking(){
@@ -1068,14 +1095,15 @@
       } else {
         setDefaultBreaking();
       }
-      restartBreakingAnimation();
-    }catch(e){setDefaultBreaking(); restartBreakingAnimation();}
+      runBreakingMarquee();
+    }catch(e){setDefaultBreaking(); runBreakingMarquee();}
   }
 
   function setDefaultBreaking(){
     var defaults=['洲本市の空き家活用プロジェクト始動','洲本城下町ウォーキングマップ完成、市役所で無料配布中','特区構想「生涯活躍のまち」認定申請、来月審査へ','商店街の若手経営者グループが新カフェをオープン予定'];
     var html=defaults.map(function(t){return '<span class="breaking-item">'+t+'</span><span class="breaking-sep">◆</span>';}).join('');
     document.getElementById('breaking-inner').innerHTML=html+html;
+    runBreakingMarquee();
   }
 
   /* ---- メンテナンス状態チェック（settings/maintenance を参照） ---- */
