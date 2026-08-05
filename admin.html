@@ -320,6 +320,7 @@
       <button class="sb-btn"     data-v="submissions">📨 投稿申請<span id="sb-submissions"></span></button>
       <button class="sb-btn"     data-v="drafts">📝 下書き<span id="sb-drafts"></span></button>
       <button class="sb-btn"     data-v="series">📚 連載・特集</button>
+      <button class="sb-btn"     data-v="authors">✍️ 執筆者紹介</button>
       <button class="sb-btn"     data-v="spots">🗺️ 地図スポット</button>
       <button class="sb-btn"     data-v="breaking">📡 速報バー設定</button>
       <button class="sb-btn"     data-v="json">📦 JSON入出力</button>
@@ -357,6 +358,7 @@
           <div class="scard click" onclick="goView('submissions')"><div class="slabel">投稿申請（未処理）</div><div class="sval red" id="s-submissions">—</div><div class="ssub">クリックで確認</div></div>
           <div class="scard click" onclick="goView('drafts')"><div class="slabel">下書き</div><div class="sval org" id="s-drafts-n">—</div><div class="ssub">ローカル保存</div></div>
           <div class="scard click" onclick="goView('series')"><div class="slabel">連載・特集</div><div class="sval" id="s-series">—</div><div class="ssub">クリックで管理</div></div>
+          <div class="scard click" onclick="goView('authors')"><div class="slabel">執筆者紹介</div><div class="sval" id="s-authors">—</div><div class="ssub">クリックで管理</div></div>
           <div class="scard click" onclick="goView('spots')"><div class="slabel">地図スポット</div><div class="sval" id="s-spots">—</div><div class="ssub">アンカツMAP掲載数</div></div>
           <div class="scard click" onclick="goView('articles')"><div class="slabel">予約投稿</div><div class="sval org" id="s-scheduled-n">—</div><div class="ssub">公開待ち</div></div>
         </div>
@@ -420,7 +422,9 @@
 
               <div class="frow">
                 <label class="flabel">著者</label>
-                <input id="f-author" type="text" class="finput" placeholder="編集部" />
+                <input id="f-author" type="text" class="finput" placeholder="編集部" list="author-datalist" />
+                <datalist id="author-datalist"></datalist>
+                <span class="fhint">「✍️ 執筆者紹介」に登録した名前が候補に出ます</span>
               </div>
 
               <div class="frow">
@@ -594,6 +598,54 @@
             <div class="factions">
               <button class="btn btn-o" onclick="resetSeriesForm()">🔄 リセット</button>
               <button class="btn btn-g" id="sr-save-btn" onclick="saveSeries()">💾 保存する</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 執筆者紹介 -->
+      <div id="v-authors" class="view">
+        <div class="panel" id="authors-list-panel">
+          <div class="phead">
+            <span class="ptitle">執筆者紹介 一覧</span>
+            <button class="btn btn-g btn-sm" onclick="goAuthorNew()">＋ 新規作成</button>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr><th style="width:58px"></th><th>名前</th><th>紹介文</th><th>記事数</th><th style="width:140px">操作</th></tr></thead>
+              <tbody id="authors-tbody"></tbody>
+            </table>
+            <div id="authors-empty" class="etbl" style="display:none">執筆者紹介はまだありません。「＋ 新規作成」から追加しましょう。</div>
+          </div>
+        </div>
+
+        <div class="fcard" id="author-form-panel" style="display:none">
+          <div class="fhead">
+            <button class="btn btn-o btn-sm" onclick="closeAuthorForm()">← 一覧へ</button>
+            <span id="author-form-title" style="font-weight:700;font-size:.95rem">新規執筆者紹介</span>
+          </div>
+          <div class="fbody">
+            <input type="hidden" id="au-id" />
+            <div class="fgrid">
+              <div class="frow full">
+                <label class="flabel">名前 <span class="req">*</span></label>
+                <input id="au-name" type="text" class="finput" placeholder="編集部" />
+                <span class="fhint">記事の「著者」欄と完全に同じ文字列にしてください（例：編集部 / 田村記者 など）</span>
+              </div>
+              <div class="frow full">
+                <label class="flabel">紹介文</label>
+                <textarea id="au-bio" class="finput" style="min-height:100px;resize:vertical;font-family:inherit" placeholder="執筆者の紹介文を入力してください"></textarea>
+              </div>
+              <div class="frow full">
+                <label class="flabel">顔写真URL</label>
+                <input id="au-photo" type="url" class="finput" placeholder="https://i.imgur.com/xxxxx.jpg" />
+                <img id="au-photo-prev" class="tprev" alt="プレビュー" style="border-radius:50%;max-width:110px;max-height:110px" />
+                <div class="thint">💡 <a href="https://imgur.com/upload" target="_blank">Imgur</a> に画像をアップして「Direct Link」をコピーして貼ってください。無料・登録不要。未設定の場合はアイコン表示になります。</div>
+              </div>
+            </div>
+            <div class="factions">
+              <button class="btn btn-o" onclick="resetAuthorForm()">🔄 リセット</button>
+              <button class="btn btn-g" id="au-save-btn" onclick="saveAuthor()">💾 保存する</button>
             </div>
           </div>
         </div>
@@ -774,6 +826,26 @@
           </div>
           <div id="imp-res" class="jres"></div>
         </div>
+
+        <div class="jpanel">
+          <h3>🗺️ 地図スポット エクスポート</h3>
+          <p style="font-size:.83rem;color:var(--muted);margin-bottom:1rem">アンカツMAPのスポットデータをJSONファイルとしてダウンロードします。</p>
+          <div style="display:flex;gap:.65rem;flex-wrap:wrap">
+            <button class="btn btn-g" onclick="doExportSpots('all')">📥 全スポット</button>
+            <button class="btn btn-o" onclick="doExportSpots('pub')">📥 公開中のみ</button>
+          </div>
+          <div id="exp-spot-res" class="jres"></div>
+        </div>
+        <div class="jpanel">
+          <h3>🗺️ 地図スポット インポート</h3>
+          <p style="font-size:.83rem;color:var(--muted);margin-bottom:.65rem">エクスポートしたJSONを貼り付けて一括追加します。type / lat / lng は必須です。スポット名＋緯度・経度が完全一致する場合はスキップします。PINコードが必要です。</p>
+          <textarea id="imp-spot-json" class="jta" placeholder='[{"title":"洲本城下町マルシェ","type":"event","category2":"マルシェ・出店","lat":34.34145,"lng":134.89612,"address":"洲本市本町3丁目","description":"説明文","tags":["マルシェ"]}]'></textarea>
+          <div style="margin-top:.65rem;display:flex;gap:.65rem">
+            <button class="btn btn-g" onclick="doImportSpots()">📤 インポート実行</button>
+            <button class="btn btn-o" onclick="document.getElementById('imp-spot-json').value=''">クリア</button>
+          </div>
+          <div id="imp-spot-res" class="jres"></div>
+        </div>
       </div>
 
     </div><!-- /body -->
@@ -824,8 +896,10 @@ var articles  = [];
 var contacts  = [];
 var series    = [];
 var spots     = [];
+var authors   = [];
 var editingId = null;
 var editingSpotId = null;
+var editingAuthorId = null;
 var curContact = null;
 var breakingOn = true;
 var _pinCb    = null;
@@ -863,6 +937,7 @@ var VTITLES = {
   new:'✏️ 新規記事作成', edit:'✏️ 記事編集',
   contacts:'✉️ お問い合わせ', drafts:'📝 下書き',
   series:'📚 連載・特集',
+  authors:'✍️ 執筆者紹介',
   spots:'🗺️ 地図スポット',
   breaking:'📡 速報バー設定', json:'📦 JSON入出力'
 };
@@ -881,6 +956,7 @@ function goView(key) {
   if (key==='submissions') renderSubmissions();
   if (key==='drafts')    renderDrafts();
   if (key==='series')    { closeSeriesForm(); renderSeriesAdminList(); }
+  if (key==='authors')   { closeAuthorForm(); renderAuthorsAdminList(); }
   if (key==='spots')     { closeSpotForm(); renderSpotsAdminList(); }
   if (key==='breaking')  loadBreaking();
   closeSB();
@@ -941,8 +1017,9 @@ function fmtDate(ts) {
 }
 
 async function loadAll() {
-  await Promise.all([loadArticles(), loadContacts(), loadSubmissions(), loadSeries(), loadSpots()]);
+  await Promise.all([loadArticles(), loadContacts(), loadSubmissions(), loadSeries(), loadSpots(), loadAuthors()]);
   populateArticleSelectForSpot();
+  populateAuthorDatalist();
   renderDash();
 }
 
@@ -1160,6 +1237,114 @@ function askDelSpot(id, title) {
   });
 }
 
+// ============================================================
+// 執筆者紹介
+// ============================================================
+async function loadAuthors() {
+  try {
+    var snap = await window._getAll('authors');
+    authors = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+    authors.sort(function(a,b){ return (a.name||'').localeCompare(b.name||'','ja'); });
+  } catch(e) { console.error('loadAuthors:', e); }
+}
+
+function populateAuthorDatalist() {
+  var dl = document.getElementById('author-datalist');
+  if (!dl) return;
+  dl.innerHTML = authors.map(function(au){ return '<option value="'+au.name+'">'; }).join('');
+}
+
+function renderAuthorsAdminList() {
+  var tbody = document.getElementById('authors-tbody');
+  var empty = document.getElementById('authors-empty');
+  if (!authors.length) { tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = authors.map(function(au){
+    var cnt = articles.filter(function(a){ return (a.author||'編集部')===au.name; }).length;
+    return '<tr>'
+      +'<td>'+(au.photo?'<img src="'+au.photo+'" class="rthumb" style="border-radius:50%;object-fit:cover" loading="lazy"/>':'<div class="rthumb-ph">✍️</div>')+'</td>'
+      +'<td style="font-weight:600;font-size:.83rem">'+au.name+'</td>'
+      +'<td style="font-size:.78rem;color:var(--muted);max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(au.bio||'—')+'</td>'
+      +'<td style="font-size:.83rem">'+cnt+'件</td>'
+      +'<td><div class="acts">'
+      +'<button class="btn btn-o btn-sm" onclick="startEditAuthor(\''+au.id+'\')">✏️</button>'
+      +'<button class="btn btn-r btn-sm" onclick="askDelAuthor(\''+au.id+'\',\''+(au.name||'').replace(/'/g,"\\'")+'\')">🗑️</button>'
+      +'</div></td></tr>';
+  }).join('');
+}
+
+function goAuthorNew() {
+  editingAuthorId = null;
+  document.getElementById('au-id').value = '';
+  document.getElementById('au-name').value = '';
+  document.getElementById('au-bio').value = '';
+  document.getElementById('au-photo').value = '';
+  document.getElementById('au-photo-prev').style.display = 'none';
+  document.getElementById('author-form-title').textContent = '新規執筆者紹介';
+  document.getElementById('authors-list-panel').style.display = 'none';
+  document.getElementById('author-form-panel').style.display = 'block';
+}
+
+function startEditAuthor(id) {
+  var au = authors.find(function(x){ return x.id===id; });
+  if (!au) return;
+  editingAuthorId = id;
+  document.getElementById('au-id').value = au.id;
+  document.getElementById('au-name').value = au.name || '';
+  document.getElementById('au-bio').value = au.bio || '';
+  document.getElementById('au-photo').value = au.photo || '';
+  var prev = document.getElementById('au-photo-prev');
+  if (au.photo) { prev.src=au.photo; prev.style.display='block'; } else { prev.style.display='none'; }
+  document.getElementById('author-form-title').textContent = '執筆者紹介を編集';
+  document.getElementById('authors-list-panel').style.display = 'none';
+  document.getElementById('author-form-panel').style.display = 'block';
+}
+
+function closeAuthorForm() {
+  document.getElementById('author-form-panel').style.display = 'none';
+  document.getElementById('authors-list-panel').style.display = 'block';
+  renderAuthorsAdminList();
+}
+
+function resetAuthorForm() {
+  var id = document.getElementById('au-id').value;
+  if (id) startEditAuthor(id); else goAuthorNew();
+}
+
+async function saveAuthor() {
+  var name = document.getElementById('au-name').value.trim();
+  if (!name) { toast('名前を入力してください（記事の著者欄と同じ文字列）','warn'); return; }
+  var d = {
+    name: name,
+    bio: document.getElementById('au-bio').value.trim(),
+    photo: document.getElementById('au-photo').value.trim()
+  };
+  var btn = document.getElementById('au-save-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 保存中…';
+  try {
+    if (editingAuthorId) {
+      await window._updateDoc('authors', editingAuthorId, d);
+      toast('執筆者紹介を更新しました ✅');
+    } else {
+      await window._addDoc('authors', d);
+      toast('執筆者紹介を作成しました ✅');
+    }
+    await loadAuthors();
+    populateAuthorDatalist();
+    closeAuthorForm();
+    renderDash();
+  } catch(e) { toast('保存失敗: '+e.message,'error'); }
+  finally { btn.disabled=false; btn.textContent='💾 保存する'; }
+}
+
+function askDelAuthor(id, name) {
+  openPin('執筆者紹介を削除', '「'+name+'」の紹介ページを削除します。記事自体は残りますが、執筆者ページの紹介文・写真は表示されなくなります。\nこの操作は取り消せません。', function(){
+    window._deleteDoc('authors', id)
+      .then(function(){ toast('削除しました'); loadAuthors().then(function(){ renderAuthorsAdminList(); populateAuthorDatalist(); }); })
+      .catch(function(e){ toast('削除失敗: '+e.message,'error'); });
+  });
+}
+
 async function loadContacts() {
   try {
     var snap = await window._getAll('contacts');
@@ -1200,6 +1385,7 @@ function renderDash() {
   document.getElementById('s-feat').textContent  = articles.filter(function(a){ return a.featured; }).length;
   document.getElementById('s-cat').textContent   = new Set(articles.map(function(a){ return a.category; }).filter(Boolean)).size;
   document.getElementById('s-series').textContent = series.length;
+  document.getElementById('s-authors').textContent = authors.length;
   document.getElementById('s-spots').textContent = spots.length;
   document.getElementById('s-scheduled-n').textContent = articles.filter(isArticleScheduled).length;
   updateUnread();
@@ -1920,6 +2106,72 @@ async function doImport() {
 }
 
 // ============================================================
+// 地図スポット JSON入出力
+// ============================================================
+function doExportSpots(mode) {
+  var data = mode==='pub'
+    ? spots.filter(function(s){ return s.published!==false; })
+    : spots;
+  var clean = data.map(function(s){ var o=Object.assign({},s); delete o.id; return o; });
+  var blob = new Blob([JSON.stringify(clean,null,2)],{type:'application/json'});
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href=url; a.download='ankatsu_spots_'+mode+'_'+new Date().toISOString().slice(0,10)+'.json'; a.click();
+  URL.revokeObjectURL(url);
+  var res=document.getElementById('exp-spot-res');
+  res.className='jres ok'; res.textContent='✅ '+clean.length+'件をエクスポートしました。';
+}
+
+var SPOT_TYPES = ['event','akiya','food','facility','sightseeing'];
+
+async function doImportSpots() {
+  var raw = document.getElementById('imp-spot-json').value.trim();
+  var res = document.getElementById('imp-spot-res');
+  res.className='jres';
+  var pin = prompt('インポート実行にはPINコードが必要です：');
+  if (pin!==PIN) { res.className='jres err'; res.textContent='❌ PINコードが違います。'; return; }
+  var data;
+  try { data=JSON.parse(raw); } catch(e){ res.className='jres err'; res.textContent='❌ JSON形式エラー: '+e.message; return; }
+  if (!Array.isArray(data)||!data.length) { res.className='jres err'; res.textContent='❌ 配列形式で入力してください。'; return; }
+  var existingKeys = spots.map(function(s){ return (s.title||'')+'|'+s.lat+'|'+s.lng; });
+  var added=0, skipped=0, invalid=0;
+  for (var i=0;i<data.length;i++) {
+    var item=data[i];
+    var lat=parseFloat(item.lat), lng=parseFloat(item.lng);
+    if (!item.title || isNaN(lat) || isNaN(lng)) { invalid++; continue; }
+    var key=item.title+'|'+lat+'|'+lng;
+    if (existingKeys.indexOf(key)>=0) { skipped++; continue; }
+    var type = SPOT_TYPES.indexOf(item.type)>=0 ? item.type : 'sightseeing';
+    try {
+      await window._addDoc('spots',{
+        title: item.title,
+        type: type,
+        category2: item.category2||'',
+        lat: lat,
+        lng: lng,
+        address: item.address||'',
+        description: item.description||'',
+        eventDate: item.eventDate||'',
+        eventTime: item.eventTime||'',
+        openingHours: item.openingHours||'',
+        priceRange: item.priceRange||'',
+        status: item.status||'',
+        image: item.image||'',
+        linkUrl: item.linkUrl||'',
+        relatedArticleId: item.relatedArticleId||'',
+        tags: Array.isArray(item.tags) ? item.tags : [],
+        published: item.published!==false
+      });
+      existingKeys.push(key); added++;
+    } catch(e){ skipped++; }
+  }
+  await loadSpots(); renderDash();
+  var msg = '✅ 追加:'+added+'件 / スキップ:'+skipped+'件';
+  if (invalid) msg += ' / 不正データ:'+invalid+'件（title・lat・lngは必須です）';
+  res.className='jres ok'; res.textContent=msg;
+}
+
+// ============================================================
 // DOMContentLoaded — すべてのイベントバインドをここに集約
 // ============================================================
 document.addEventListener('DOMContentLoaded', function() {
@@ -1971,6 +2223,14 @@ document.addEventListener('DOMContentLoaded', function() {
   // 連載・特集フォーム: ロゴプレビュー
   document.getElementById('sr-logo').addEventListener('input', function(e){
     var prev = document.getElementById('sr-logo-prev');
+    var url  = e.target.value.trim();
+    if (url){ prev.src=url; prev.style.display='block'; }
+    else    { prev.style.display='none'; }
+  });
+
+  // 執筆者紹介フォーム: 写真プレビュー
+  document.getElementById('au-photo').addEventListener('input', function(e){
+    var prev = document.getElementById('au-photo-prev');
     var url  = e.target.value.trim();
     if (url){ prev.src=url; prev.style.display='block'; }
     else    { prev.style.display='none'; }
