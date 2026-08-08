@@ -443,6 +443,16 @@
                 <span class="fhint">選択すると記事に📍バッジが付き、アンカツMAPの該当ピンへ直接リンクされます。「🗺️ 地図スポット」から作成できます</span>
               </div>
 
+              <div class="frow" id="f-event-wrap" style="display:none">
+                <label class="flabel">📅 イベント日</label>
+                <input id="f-eventdate" type="date" class="finput" />
+                <span class="fhint">イベントカレンダーに反映されます</span>
+              </div>
+              <div class="frow" id="f-eventtime-wrap" style="display:none">
+                <label class="flabel">🕒 イベント時間</label>
+                <input id="f-eventtime" type="text" class="finput" placeholder="10:00-16:00" />
+              </div>
+
               <div class="frow full">
                 <label class="flabel">タグ（カンマ区切り）</label>
                 <input id="f-tags" type="text" class="finput" placeholder="洲本, 移住, イベント" />
@@ -888,6 +898,16 @@
 // ============================================================
 var PIN        = '2506';          // ← 削除PINコード
 var DRAFT_KEY  = 'ankatsu_drafts'; // localStorage キー
+var SUBMIT_GAS_URL = 'https://script.google.com/macros/s/XXXXXXXXXXXXXXXX/exec'; // submit.htmlと同じGASのURLに書き換え
+
+function sendResultMail(type, payload) {
+  if (!SUBMIT_GAS_URL || SUBMIT_GAS_URL.indexOf('XXXX') >= 0) return;
+  fetch(SUBMIT_GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(Object.assign({ type: type }, payload))
+  }).catch(function (e) { console.error('mail error:', e); });
+}
 
 // ============================================================
 // 状態
@@ -1559,18 +1579,39 @@ function openSub(id) {
   setBodyHtml(s.body||'');
   document.getElementById('form-title').textContent = '✏️ 申請内容の編集・承認';
 
-  // フォームを申請モードに
-  document.getElementById('pub-btn').textContent = '✅ 承認して公開';
-  document.getElementById('pub-btn').onclick = function(){ approveSubmission(id); };
+  // 通常の「公開保存」ボタンは隠し、代わりに3択ボタンを出す
+  document.getElementById('pub-btn').style.display = 'none';
 
-  // 否認ボタン追加
+  var factionsWrap = document.querySelector('.factions');
+
+  var asisBtn = document.getElementById('sub-asis-btn');
+  if (!asisBtn) {
+    asisBtn = document.createElement('button');
+    asisBtn.id = 'sub-asis-btn';
+    asisBtn.className = 'btn btn-g';
+    factionsWrap.insertBefore(asisBtn, document.getElementById('pub-btn'));
+  }
+  asisBtn.textContent = '📮 そのまま掲載';
+  asisBtn.onclick = function () { approveSubmission(id, 'asis'); };
+
+  var editBtn = document.getElementById('sub-edit-btn');
+  if (!editBtn) {
+    editBtn = document.createElement('button');
+    editBtn.id = 'sub-edit-btn';
+    editBtn.className = 'btn btn-g';
+    factionsWrap.insertBefore(editBtn, document.getElementById('pub-btn'));
+  }
+  editBtn.textContent = '✏️ 編集して掲載';
+  editBtn.onclick = function () { approveSubmission(id, 'edited'); };
+
+  // 見送りボタン追加
   var factions = document.getElementById('sub-factions');
   if (!factions) {
     var fa = document.querySelector('.factions');
     var rejBtn = document.createElement('button');
     rejBtn.id = 'sub-factions';
     rejBtn.className = 'btn btn-r';
-    rejBtn.textContent = '❌ 否認する';
+    rejBtn.textContent = '❌ 見送る';
     rejBtn.onclick = function(){ rejectSubmission(id); };
     fa.insertBefore(rejBtn, fa.firstChild);
   } else {
@@ -1588,8 +1629,16 @@ function openSub(id) {
   }
   banner.style.display = 'block';
   banner.innerHTML = '📨 <b>投稿申請</b> — 申請者: '+(s.authorName||'—')+' / '+( s.authorEmail||'—')+' / カテゴリ: '+(s.category||'—')
-    + (s.status==='approved'?' ✅ <b>承認済み</b>':s.status==='rejected'?' ❌ <b>否認済み</b>':' ⏳ 未処理')
+    + (s.status==='approved'?' ✅ <b>承認済み</b>':s.status==='rejected'?' ❌ 見送り済み':' ⏳ 未処理')
     +'<button onclick="goView(\'submissions\')" style="float:right;font-size:.76rem;color:var(--green);text-decoration:underline;background:none;border:none;cursor:pointer">← 申請一覧へ</button>';
+
+  // MAPスポットの紐付け状況を表示
+  if (s.mapSpotId) {
+    var linkedSpot = (spots || []).find(function (sp) { return sp.id === s.mapSpotId; });
+    banner.innerHTML += '<div style="margin-top:.5rem">🗺️ 紐づけ希望スポット: <b>' + (linkedSpot ? (SPOT_CATS[linkedSpot.type]||{}).emoji + ' ' + linkedSpot.title : '（削除済み or 不明なスポット）') + '</b>（記事フォームの「地図スポット」欄に自動選択されています）</div>';
+  } else if (s.category === 'イベント') {
+    banner.innerHTML += '<div style="margin-top:.5rem"><button class="btn btn-o btn-sm" type="button" onclick="createSpotFromSubmission()">🗺️ この申請用にMAPスポットを新規作成する</button></div>';
+  }
 
   document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('on'); });
   document.getElementById('v-form').classList.add('on');
@@ -1597,30 +1646,80 @@ function openSub(id) {
   window.scrollTo(0,0);
 }
 
-async function approveSubmission(id) {
+function createSpotFromSubmission() {
+  if (!curSub) return;
+  var s = curSub; // goSpotNew() でリセットされる前に退避
+  goView('spots');
+  goSpotNew();
+  document.getElementById('sp-title').value = s.title || '';
+  document.getElementById('sp-type').value = 'event';
+  document.getElementById('sp-desc').value = (s.body || '').replace(/<[^>]*>/g, '').slice(0, 200);
+  document.getElementById('sp-eventdate').value = s.eventDate || '';
+  document.getElementById('sp-eventtime').value = s.eventTime || '';
+  toast('住所・緯度経度を入力して保存してください（Googleマップで場所を検索→右クリックで座標をコピー）', 'warn');
+}
+
+async function approveSubmission(id, mode) {
   var d = getFormData();
   d.body = getBodyHtml();
   if (!d.title||!d.slug||!d.category) { toast('タイトル・スラッグ・カテゴリを入力してください','warn'); return; }
-  var btn = document.getElementById('pub-btn');
-  btn.disabled=true; btn.innerHTML='<span class="spin"></span> 公開中…';
+
+  var editSummary = '';
+  if (mode === 'edited') {
+    editSummary = prompt('編集内容の要約を入力してください（申請者へのメールに記載されます）:', '') || '';
+  }
+
+  var btn = mode === 'asis' ? document.getElementById('sub-asis-btn') : document.getElementById('sub-edit-btn');
+  var origLabel = btn.textContent;
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 公開中…';
   try {
     d.createdAt = window._ts();
-    await window._addDoc('articles', d);
-    await window._updateDoc('submissions', id, {status:'approved', approvedAt: window._ts()});
+    var ref = await window._addDoc('articles', d);
+    await window._updateDoc('submissions', id, {
+      status: 'approved',
+      approvedAt: window._ts(),
+      publishMode: mode,
+      publishedArticleId: ref.id,
+      publishedSlug: d.slug,
+      editSummary: editSummary
+    });
     toast('承認して公開しました ✅');
+
+    sendResultMail(mode === 'asis' ? 'published_asis' : 'published_edited', {
+      to: curSub.authorEmail,
+      name: curSub.authorName || curSub.author,
+      original_title: curSub.title,
+      title: d.title,
+      category: d.category,
+      published_at: new Date().toLocaleString('ja-JP'),
+      article_url: location.origin + location.pathname.replace('admin.html', 'index.html') + '#article/' + encodeURIComponent(d.slug),
+      edit_summary: editSummary,
+      body: (d.body || '').replace(/<[^>]*>/g, '').slice(0, 800)
+    });
+
     resetSubForm();
     await loadArticles();
     await loadSubmissions();
     goView('submissions');
   } catch(e) { toast('失敗: '+e.message,'error'); }
-  finally { btn.disabled=false; btn.textContent='✅ 承認して公開'; }
+  finally { btn.disabled = false; btn.textContent = origLabel; }
 }
 
 async function rejectSubmission(id) {
-  var reason = prompt('否認理由（任意。申請者への参考メモ）:') || '';
+  var reason = prompt('見送り理由（申請者へのメールに記載されます）:') || '';
   try {
     await window._updateDoc('submissions', id, {status:'rejected', rejectedAt:window._ts(), rejectReason:reason});
-    toast('否認しました');
+    toast('見送りにしました');
+
+    sendResultMail('rejected', {
+      to: curSub.authorEmail,
+      name: curSub.authorName || curSub.author,
+      title: curSub.title,
+      category: curSub.category,
+      submitted_at: fmtDate(curSub.createdAt),
+      reason: reason
+    });
+
     resetSubForm();
     await loadSubmissions();
     goView('submissions');
@@ -1629,10 +1728,13 @@ async function rejectSubmission(id) {
 
 function resetSubForm() {
   // 申請モード解除
+  document.getElementById('pub-btn').style.display = '';
   document.getElementById('pub-btn').textContent = '💾 公開保存';
   document.getElementById('pub-btn').onclick = pubArticle;
   var b = document.getElementById('sub-banner'); if(b) b.style.display='none';
   var rb = document.getElementById('sub-factions'); if(rb) rb.remove();
+  var ab = document.getElementById('sub-asis-btn'); if(ab) ab.remove();
+  var eb = document.getElementById('sub-edit-btn'); if(eb) eb.remove();
   curSub = null;
 }
 
@@ -1662,6 +1764,8 @@ function getFormData() {
     tags:      document.getElementById('f-tags').value.split(',').map(function(t){return t.trim();}).filter(Boolean),
     thumbnail: document.getElementById('f-thumb').value.trim(),
     featured:  document.getElementById('f-feat').checked,
+    eventDate: document.getElementById('f-eventdate').value.trim(),
+    eventTime: document.getElementById('f-eventtime').value.trim(),
     body:      getBodyHtml()
   };
 }
@@ -1674,6 +1778,10 @@ function setFormData(d) {
   document.getElementById('f-series').value = d.seriesId || '';
   populateSpotsSelect();
   document.getElementById('f-mapspot').value = d.mapSpotId || '';
+  document.getElementById('f-eventdate').value = d.eventDate || '';
+  document.getElementById('f-eventtime').value = d.eventTime || '';
+  document.getElementById('f-event-wrap').style.display = (d.category === 'イベント') ? 'flex' : 'none';
+  document.getElementById('f-eventtime-wrap').style.display = (d.category === 'イベント') ? 'flex' : 'none';
   document.getElementById('f-tags').value   = (d.tags||[]).join(', ');
   document.getElementById('f-thumb').value  = d.thumbnail|| '';
   document.getElementById('f-feat').checked = !!d.featured;
@@ -2212,6 +2320,13 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('f-title').addEventListener('blur', function(){
     var sl = document.getElementById('f-slug');
     if (!sl.value.trim()) sl.value = 'article-'+Date.now();
+  });
+
+  // カテゴリが「イベント」のときだけイベント日時欄を表示
+  document.getElementById('f-cat').addEventListener('change', function (e) {
+    var on = e.target.value === 'イベント';
+    document.getElementById('f-event-wrap').style.display = on ? 'flex' : 'none';
+    document.getElementById('f-eventtime-wrap').style.display = on ? 'flex' : 'none';
   });
 
   // 連載・特集フォーム: タイトル→スラッグ自動生成
