@@ -287,7 +287,7 @@
 <div id="pg-login">
   <div class="lcard">
     <h1>アンカツ＋</h1>
-    <p>管理画面 / ADMIN</p>
+    <p>管理画面 / ADMIN・投稿者ログイン</p>
     <div class="lfield">
       <label>メールアドレス</label>
       <input id="l-email" type="email" placeholder="admin@example.com" autocomplete="email" />
@@ -318,6 +318,7 @@
       <button class="sb-btn"     data-v="new">✏️ 新規記事作成</button>
       <button class="sb-btn"     data-v="contacts">✉️ お問い合わせ<span id="sb-unread"></span></button>
       <button class="sb-btn"     data-v="submissions">📨 投稿申請<span id="sb-submissions"></span></button>
+      <button class="sb-btn"     data-v="accounts">🧑‍💼 投稿者アカウント<span id="sb-accounts"></span></button>
       <button class="sb-btn"     data-v="drafts">📝 下書き<span id="sb-drafts"></span></button>
       <button class="sb-btn"     data-v="series">📚 連載・特集</button>
       <button class="sb-btn"     data-v="authors">✍️ 執筆者紹介</button>
@@ -327,6 +328,7 @@
       <div class="sb-sec" style="margin-top:.5rem">サイト</div>
       <a class="sb-btn" href="index.html" target="_blank">🌐 サイトを開く</a>
       <a class="sb-btn" href="ankatsu-map.html" target="_blank">🗺️ アンカツMAPを開く</a>
+      <a class="sb-btn" href="register.html" target="_blank">🧑‍💼 投稿者アカウント登録ページ</a>
     </div>
     <div class="sb-foot">
       <div class="sb-user">👤 <span id="sb-email"></span></div>
@@ -350,21 +352,37 @@
 
       <!-- ダッシュボード -->
       <div id="v-dashboard" class="view on">
-        <div class="stats">
-          <div class="scard"><div class="slabel">総記事数</div><div class="sval" id="s-total">—</div><div class="ssub">公開中</div></div>
-          <div class="scard"><div class="slabel">注目記事</div><div class="sval" id="s-feat">—</div><div class="ssub">トップ掲載</div></div>
-          <div class="scard"><div class="slabel">カテゴリ数</div><div class="sval" id="s-cat">—</div><div class="ssub">登録済み</div></div>
-          <div class="scard click" onclick="goView('contacts')"><div class="slabel">未読お問い合わせ</div><div class="sval red" id="s-contacts">—</div><div class="ssub">クリックで確認</div></div>
-          <div class="scard click" onclick="goView('submissions')"><div class="slabel">投稿申請（未処理）</div><div class="sval red" id="s-submissions">—</div><div class="ssub">クリックで確認</div></div>
-          <div class="scard click" onclick="goView('drafts')"><div class="slabel">下書き</div><div class="sval org" id="s-drafts-n">—</div><div class="ssub">ローカル保存</div></div>
-          <div class="scard click" onclick="goView('series')"><div class="slabel">連載・特集</div><div class="sval" id="s-series">—</div><div class="ssub">クリックで管理</div></div>
-          <div class="scard click" onclick="goView('authors')"><div class="slabel">執筆者紹介</div><div class="sval" id="s-authors">—</div><div class="ssub">クリックで管理</div></div>
-          <div class="scard click" onclick="goView('spots')"><div class="slabel">地図スポット</div><div class="sval" id="s-spots">—</div><div class="ssub">アンカツMAP掲載数</div></div>
-          <div class="scard click" onclick="goView('articles')"><div class="slabel">予約投稿</div><div class="sval org" id="s-scheduled-n">—</div><div class="ssub">公開待ち</div></div>
+        <div id="dash-admin-content">
+          <div class="stats">
+            <div class="scard"><div class="slabel">総記事数</div><div class="sval" id="s-total">—</div><div class="ssub">公開中</div></div>
+            <div class="scard"><div class="slabel">注目記事</div><div class="sval" id="s-feat">—</div><div class="ssub">トップ掲載</div></div>
+            <div class="scard"><div class="slabel">カテゴリ数</div><div class="sval" id="s-cat">—</div><div class="ssub">登録済み</div></div>
+            <div class="scard click" onclick="goView('contacts')"><div class="slabel">未読お問い合わせ</div><div class="sval red" id="s-contacts">—</div><div class="ssub">クリックで確認</div></div>
+            <div class="scard click" onclick="goView('submissions')"><div class="slabel">投稿申請（未処理）</div><div class="sval red" id="s-submissions">—</div><div class="ssub">クリックで確認</div></div>
+            <div class="scard click" onclick="goView('accounts')"><div class="slabel">投稿者アカウント申請（未処理）</div><div class="sval red" id="s-accounts">—</div><div class="ssub">クリックで確認</div></div>
+            <div class="scard click" onclick="goView('drafts')"><div class="slabel">下書き</div><div class="sval org" id="s-drafts-n">—</div><div class="ssub">ローカル保存</div></div>
+            <div class="scard click" onclick="goView('series')"><div class="slabel">連載・特集</div><div class="sval" id="s-series">—</div><div class="ssub">クリックで管理</div></div>
+            <div class="scard click" onclick="goView('authors')"><div class="slabel">執筆者紹介</div><div class="sval" id="s-authors">—</div><div class="ssub">クリックで管理</div></div>
+            <div class="scard click" onclick="goView('spots')"><div class="slabel">地図スポット</div><div class="sval" id="s-spots">—</div><div class="ssub">アンカツMAP掲載数</div></div>
+            <div class="scard click" onclick="goView('articles')"><div class="slabel">予約投稿</div><div class="sval org" id="s-scheduled-n">—</div><div class="ssub">公開待ち</div></div>
+          </div>
+          <div class="panel">
+            <div class="phead"><span class="ptitle">最近の記事</span><button class="btn btn-o btn-sm" onclick="goView('articles')">すべて見る →</button></div>
+            <div id="dash-list"></div>
+          </div>
         </div>
-        <div class="panel">
-          <div class="phead"><span class="ptitle">最近の記事</span><button class="btn btn-o btn-sm" onclick="goView('articles')">すべて見る →</button></div>
-          <div id="dash-list"></div>
+        <div id="dash-contributor-content" style="display:none">
+          <div class="panel">
+            <div style="padding:2.5rem 2rem">
+              <h2 style="font-family:var(--serif);font-size:1.3rem;margin-bottom:.75rem">ようこそ、<span id="dash-contrib-name">-</span> さん</h2>
+              <p style="color:var(--muted);font-size:.9rem;line-height:1.9">投稿者アカウントとしてログインしています。この管理画面では、ご自身の執筆者プロフィールの編集ができます。記事の投稿や、投稿状況の確認はマイページから行ってください。</p>
+              <div style="display:flex;gap:.65rem;margin-top:1.5rem;flex-wrap:wrap">
+                <a href="register.html" class="btn btn-g">🧑‍💼 マイページを開く</a>
+                <a href="submit.html" class="btn btn-o">📝 記事を投稿する</a>
+                <button class="btn btn-o" onclick="goView('authors')">✍️ プロフィールを編集する</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -550,6 +568,29 @@
         </div>
       </div>
 
+      <!-- 投稿者アカウント -->
+      <div id="v-accounts" class="view">
+        <div class="panel" id="accounts-list-panel">
+          <div class="phead">
+            <span class="ptitle">投稿者アカウント申請一覧</span>
+            <div style="display:flex;gap:.65rem;align-items:center;flex-wrap:wrap">
+              <span id="acc-count" style="font-size:.8rem;color:var(--muted)"></span>
+              <button class="btn btn-o btn-sm" onclick="openQuestionBank()">❓ 質問バンク管理</button>
+            </div>
+          </div>
+          <div id="acc-list"></div>
+        </div>
+
+        <!-- 申請詳細 -->
+        <div class="fcard" id="account-detail-panel" style="display:none">
+          <div class="fhead">
+            <button class="btn btn-o btn-sm" onclick="closeAccountDetail()">← 一覧へ</button>
+            <span id="account-detail-title" style="font-weight:700;font-size:.95rem">申請内容</span>
+          </div>
+          <div class="fbody" id="account-detail-body"></div>
+        </div>
+      </div>
+
       <!-- 下書き -->
       <div id="v-drafts" class="view">
         <div class="panel">
@@ -631,7 +672,7 @@
 
         <div class="fcard" id="author-form-panel" style="display:none">
           <div class="fhead">
-            <button class="btn btn-o btn-sm" onclick="closeAuthorForm()">← 一覧へ</button>
+            <button class="btn btn-o btn-sm" id="author-back-btn" onclick="closeAuthorForm()">← 一覧へ</button>
             <span id="author-form-title" style="font-weight:700;font-size:.95rem">新規執筆者紹介</span>
           </div>
           <div class="fbody">
@@ -889,6 +930,38 @@
   </div>
 </div>
 
+<!-- 質問バンク管理モーダル -->
+<div class="mback" id="qbank-modal">
+  <div class="mbox" style="max-width:560px">
+    <h3>❓ 追加確認：定型質問バンク</h3>
+    <p style="margin-bottom:1rem">申請者への「追加確認」で選べる定型質問を管理します。</p>
+    <div id="qbank-list" style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem;max-height:280px;overflow-y:auto"></div>
+    <div style="display:flex;gap:.5rem">
+      <input id="qbank-new-input" type="text" class="finput" placeholder="新しい質問文を入力" style="flex:1" />
+      <button class="btn btn-g btn-sm" onclick="addQBankQuestion()">＋ 追加</button>
+    </div>
+    <div class="macts">
+      <button class="btn btn-o" onclick="closeQuestionBank()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- 追加確認送信モーダル -->
+<div class="mback" id="needsinfo-modal">
+  <div class="mbox" style="max-width:560px">
+    <h3>❓ 追加確認を送る</h3>
+    <p style="margin-bottom:.75rem">定型質問から選ぶ、または自由に質問を入力できます（両方でもOK）。</p>
+    <div class="flabel" style="margin-bottom:.4rem">定型質問から選択</div>
+    <div id="needsinfo-presets" style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:1rem;max-height:180px;overflow-y:auto"></div>
+    <div class="flabel" style="margin-bottom:.4rem">自由入力の質問（任意）</div>
+    <textarea id="needsinfo-custom" class="ftextarea" style="min-height:80px" placeholder="その他、確認したい事項があれば入力してください"></textarea>
+    <div class="macts">
+      <button class="btn btn-o" onclick="closeNeedsInfoModal()">キャンセル</button>
+      <button class="btn btn-w" id="needsinfo-send-btn" onclick="sendNeedsInfo()">📨 送信する</button>
+    </div>
+  </div>
+</div>
+
 <!-- トースト -->
 <div id="toasts" style="position:fixed;bottom:1.25rem;right:1.25rem;display:flex;flex-direction:column;gap:.45rem;z-index:9999"></div>
 
@@ -956,13 +1029,45 @@ var VTITLES = {
   dashboard:'📊 ダッシュボード', articles:'📰 記事一覧',
   new:'✏️ 新規記事作成', edit:'✏️ 記事編集',
   contacts:'✉️ お問い合わせ', drafts:'📝 下書き',
+  submissions:'📨 投稿申請', accounts:'🧑‍💼 投稿者アカウント',
   series:'📚 連載・特集',
   authors:'✍️ 執筆者紹介',
   spots:'🗺️ 地図スポット',
   breaking:'📡 速報バー設定', json:'📦 JSON入出力'
 };
 
+// 投稿者(contributor)ロールがアクセスできるビュー。それ以外は「アクセス権がありません」を表示する。
+var CONTRIBUTOR_ALLOWED_VIEWS = ['dashboard', 'authors'];
+
+function canAccessView(key) {
+  if (_role === 'admin') return true;
+  if (_role === 'contributor') return CONTRIBUTOR_ALLOWED_VIEWS.indexOf(key) >= 0;
+  return false;
+}
+
+function showAccessDenied(key) {
+  document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('on'); });
+  var deny = document.getElementById('v-access-denied');
+  if (!deny) {
+    deny = document.createElement('div');
+    deny.id = 'v-access-denied';
+    deny.className = 'view';
+    deny.innerHTML = '<div class="panel"><div style="padding:3.5rem 2rem;text-align:center;color:var(--muted)">'
+      + '<div style="font-size:2.5rem;margin-bottom:1rem">🚫</div>'
+      + '<div style="font-weight:700;font-size:1.05rem;color:var(--text);margin-bottom:.5rem">アクセス権がありません</div>'
+      + '<div style="font-size:.85rem;line-height:1.8">このページを利用する権限がありません。<br>投稿や執筆者プロフィールの編集はマイページから行ってください。</div>'
+      + '<a href="register.html" class="btn btn-g" style="margin-top:1.5rem;display:inline-flex">🧑\u200d💼 マイページへ</a>'
+      + '</div></div>';
+    document.getElementById('body').appendChild(deny);
+  }
+  deny.classList.add('on');
+  document.getElementById('page-title').textContent = (VTITLES[key] || '') + '（アクセス権なし）';
+  document.querySelectorAll('.sb-btn[data-v]').forEach(function(b){ b.classList.toggle('on', b.dataset.v===key); });
+}
+
 function goView(key) {
+  if (!canAccessView(key)) { showAccessDenied(key); closeSB(); window.scrollTo(0,0); return; }
+
   document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('on'); });
   var el = document.getElementById('v-' + (key==='new'||key==='edit'?'form':key));
   if (el) el.classList.add('on');
@@ -971,12 +1076,26 @@ function goView(key) {
   document.querySelectorAll('.sb-btn[data-v]').forEach(function(b){ b.classList.toggle('on', b.dataset.v===key); });
   if (key==='new')       { resetForm(); editingId=null; }
   if (key==='articles')  renderArticles();
-  if (key==='dashboard') renderDash();
+  if (key==='dashboard') {
+    var isAdmin = _role === 'admin';
+    document.getElementById('dash-admin-content').style.display = isAdmin ? 'block' : 'none';
+    document.getElementById('dash-contributor-content').style.display = isAdmin ? 'none' : 'block';
+    if (isAdmin) renderDash();
+  }
   if (key==='contacts')  renderContacts();
   if (key==='submissions') renderSubmissions();
+  if (key==='accounts')  {
+    document.getElementById('account-detail-panel').style.display = 'none';
+    document.getElementById('accounts-list-panel').style.display = 'block';
+    curAccountId = null;
+    renderAccountsList();
+  }
   if (key==='drafts')    renderDrafts();
   if (key==='series')    { closeSeriesForm(); renderSeriesAdminList(); }
-  if (key==='authors')   { closeAuthorForm(); renderAuthorsAdminList(); }
+  if (key==='authors')   {
+    if (_role === 'admin') { closeAuthorForm(); renderAuthorsAdminList(); }
+    else { renderContributorAuthorProfile(); }
+  }
   if (key==='spots')     { closeSpotForm(); renderSpotsAdminList(); }
   if (key==='breaking')  loadBreaking();
   closeSB();
@@ -1012,16 +1131,45 @@ function initLogin() {
 }
 
 // ============================================================
-// 認証状態監視
+// 認証状態監視・ロール判定
 // ============================================================
+// admins/{uid} が存在すれば管理者、accounts/{uid}.status==='approved' なら
+// 承認済み投稿者。どちらでもなければ管理画面へのアクセス権なしとして弾く。
+var _role = null; // 'admin' | 'contributor' | null
+
+async function detectRole(uid) {
+  try {
+    var adminSnap = await window._getDoc('admins', uid);
+    if (adminSnap.exists()) return 'admin';
+  } catch (e) { /* 管理者でなければ読めないのでエラーは無視 */ }
+  try {
+    var accSnap = await window._getDoc('accounts', uid);
+    if (accSnap.exists() && accSnap.data().status === 'approved') return 'contributor';
+  } catch (e) { console.error('detectRole (accounts):', e); }
+  return null;
+}
+
 function initAuth() {
-  window._onAuth(function(user) {
+  window._onAuth(async function (user) {
     if (user) {
-      document.getElementById('pg-login').style.display  = 'none';
+      var role = await detectRole(user.uid);
+      if (!role) {
+        toast('このアカウントには管理画面へのアクセス権がありません', 'error');
+        await window._signOut();
+        return;
+      }
+      _role = role;
+      document.getElementById('pg-login').style.display = 'none';
       document.getElementById('pg-admin').classList.add('on');
-      document.getElementById('sb-email').textContent = user.email;
-      loadAll();
+      document.getElementById('sb-email').textContent = user.email + (role === 'contributor' ? '（投稿者）' : '');
+      if (role === 'admin') {
+        loadAll();
+      } else {
+        document.getElementById('dash-contrib-name').textContent = user.email;
+        goView('dashboard');
+      }
     } else {
+      _role = null;
       document.getElementById('pg-login').style.display  = 'flex';
       document.getElementById('pg-admin').classList.remove('on');
     }
@@ -1037,7 +1185,7 @@ function fmtDate(ts) {
 }
 
 async function loadAll() {
-  await Promise.all([loadArticles(), loadContacts(), loadSubmissions(), loadSeries(), loadSpots(), loadAuthors()]);
+  await Promise.all([loadArticles(), loadContacts(), loadSubmissions(), loadSeries(), loadSpots(), loadAuthors(), loadAccounts()]);
   populateArticleSelectForSpot();
   populateAuthorDatalist();
   renderDash();
@@ -1293,6 +1441,51 @@ function renderAuthorsAdminList() {
   }).join('');
 }
 
+// ---- 投稿者ロール専用：自分の執筆者プロフィールだけを編集する ----
+async function renderContributorAuthorProfile() {
+  document.getElementById('authors-list-panel').style.display = 'none';
+  document.getElementById('author-form-panel').style.display = 'block';
+  document.getElementById('author-form-title').textContent = '自分の執筆者プロフィールを編集';
+  var backBtn = document.getElementById('author-back-btn');
+  if (backBtn) backBtn.style.display = 'none';
+
+  var user = window._auth && window._auth.currentUser;
+  if (!user) return;
+  var uid = user.uid;
+  var snap = await window._getDoc('authors', uid);
+  var data = snap.exists() ? snap.data() : {};
+
+  document.getElementById('au-id').value = uid;
+  document.getElementById('au-name').value = data.name || '';
+  document.getElementById('au-bio').value = data.bio || '';
+  document.getElementById('au-photo').value = data.photo || '';
+  var prev = document.getElementById('au-photo-prev');
+  if (data.photo) { prev.src = data.photo; prev.style.display = 'block'; } else { prev.style.display = 'none'; }
+
+  var btn = document.getElementById('au-save-btn');
+  btn.textContent = '💾 保存する';
+  btn.onclick = saveOwnAuthorProfile;
+}
+
+async function saveOwnAuthorProfile() {
+  var user = window._auth && window._auth.currentUser;
+  if (!user) return;
+  var name = document.getElementById('au-name').value.trim();
+  if (!name) { toast('名前を入力してください（記事の著者欄と同じ文字列）', 'warn'); return; }
+  var btn = document.getElementById('au-save-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 保存中…';
+  try {
+    await window._setDoc('authors', user.uid, {
+      ownerUid: user.uid,
+      name: name,
+      bio: document.getElementById('au-bio').value.trim(),
+      photo: document.getElementById('au-photo').value.trim()
+    });
+    toast('プロフィールを保存しました ✅');
+  } catch (e) { toast('保存失敗: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '💾 保存する'; }
+}
+
 function goAuthorNew() {
   editingAuthorId = null;
   document.getElementById('au-id').value = '';
@@ -1323,6 +1516,8 @@ function startEditAuthor(id) {
 function closeAuthorForm() {
   document.getElementById('author-form-panel').style.display = 'none';
   document.getElementById('authors-list-panel').style.display = 'block';
+  var backBtn = document.getElementById('author-back-btn'); if (backBtn) backBtn.style.display = '';
+  var saveBtn = document.getElementById('au-save-btn'); if (saveBtn) saveBtn.onclick = saveAuthor;
   renderAuthorsAdminList();
 }
 
@@ -1736,6 +1931,230 @@ function resetSubForm() {
   var ab = document.getElementById('sub-asis-btn'); if(ab) ab.remove();
   var eb = document.getElementById('sub-edit-btn'); if(eb) eb.remove();
   curSub = null;
+}
+
+// ============================================================
+// 投稿者アカウント申請
+// ============================================================
+var accounts = [];
+var questionBank = [];
+var curAccountId = null;
+var _needsInfoTargetId = null;
+
+var ACC_STATUS_LABEL = {
+  pending:    ['⏳ 審査中', 'tag-r'],
+  needs_info: ['❓ 追加確認中', 'tag-y'],
+  approved:   ['✅ 承認済み', 'tag-g'],
+  rejected:   ['❌ 見送り', '']
+};
+
+function registerUrl() { return location.origin + location.pathname.replace('admin.html', 'register.html'); }
+
+async function loadAccounts() {
+  try {
+    var snap = await window._getAll('accounts');
+    accounts = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+    accounts.sort(function(a,b){
+      try { var ta=(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():new Date(0); var tb=(b.createdAt&&b.createdAt.toDate)?b.createdAt.toDate():new Date(0); return tb-ta; }
+      catch(e){ return 0; }
+    });
+    updateAccBadge();
+  } catch(e) { console.error('loadAccounts:', e); }
+}
+
+function updateAccBadge() {
+  var pending = accounts.filter(function(a){ return a.status==='pending' || a.status==='needs_info'; }).length;
+  document.getElementById('sb-accounts').innerHTML = pending ? '<span class="nbadge">'+pending+'</span>' : '';
+  var sa = document.getElementById('s-accounts'); if (sa) sa.textContent = pending;
+}
+
+async function renderAccountsList() {
+  await loadAccounts();
+  document.getElementById('acc-count').textContent = '全' + accounts.length + '件';
+  var wrap = document.getElementById('acc-list');
+  if (!accounts.length) { wrap.innerHTML = '<div class="etbl">投稿者アカウント申請はまだありません。</div>'; return; }
+  wrap.innerHTML = '<table class="tbl"><thead><tr><th>お名前</th><th>メール</th><th>所属</th><th>状態</th><th>申請日</th><th style="width:90px"></th></tr></thead><tbody>'
+    + accounts.map(function(a){
+        var st = ACC_STATUS_LABEL[a.status] || ['-',''];
+        return '<tr style="cursor:pointer" onclick="openAccountDetail(\''+a.id+'\')">'
+          +'<td style="font-weight:600;font-size:.83rem">'+(a.name||'—')+'</td>'
+          +'<td style="font-size:.78rem">'+(a.email||'—')+'</td>'
+          +'<td style="font-size:.78rem;color:var(--muted)">'+(a.org||'—')+'</td>'
+          +'<td><span class="tag '+st[1]+'" style="'+(st[1]?'':'background:#f3f3f3;color:var(--muted)')+'">'+st[0]+'</span></td>'
+          +'<td style="font-size:.76rem;white-space:nowrap">'+fmtDate(a.createdAt)+'</td>'
+          +'<td><button class="btn btn-o btn-sm">詳細</button></td>'
+          +'</tr>';
+      }).join('') + '</tbody></table>';
+}
+
+function openAccountDetail(id) {
+  var a = accounts.find(function(x){ return x.id===id; });
+  if (!a) return;
+  curAccountId = id;
+  document.getElementById('accounts-list-panel').style.display = 'none';
+  document.getElementById('account-detail-panel').style.display = 'block';
+  document.getElementById('account-detail-title').textContent = '申請内容 — ' + (a.name || '');
+
+  var st = ACC_STATUS_LABEL[a.status] || ['-',''];
+  var qHtml = (a.questions||[]).map(function(q){
+    return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.75rem 1rem;margin-bottom:.6rem">'
+      + '<div style="font-weight:700;font-size:.85rem;margin-bottom:.35rem">Q. ' + q.text + '</div>'
+      + (q.answer
+          ? '<div style="font-size:.83rem;color:var(--muted)">A. ' + q.answer + '</div>'
+          : '<div style="font-size:.78rem;color:var(--light)">（回答待ち）</div>')
+      + '</div>';
+  }).join('') || '<div style="font-size:.82rem;color:var(--light)">追加確認のやりとりはまだありません。</div>';
+
+  document.getElementById('account-detail-body').innerHTML =
+    '<div style="margin-bottom:1.25rem">'
+    + '<span class="tag '+st[1]+'" style="'+(st[1]?'':'background:#f3f3f3;color:var(--muted)')+'">'+st[0]+'</span>'
+    + '</div>'
+    + '<table style="width:100%;border-collapse:collapse;margin-bottom:1.25rem;font-size:.85rem">'
+    + '<tr><td style="padding:.35rem 0;width:110px;color:var(--light);font-size:.76rem">お名前</td><td>'+(a.name||'—')+'</td></tr>'
+    + '<tr><td style="padding:.35rem 0;color:var(--light);font-size:.76rem">メール</td><td><a href="mailto:'+a.email+'">'+(a.email||'—')+'</a></td></tr>'
+    + '<tr><td style="padding:.35rem 0;color:var(--light);font-size:.76rem">所属・活動</td><td>'+(a.org||'—')+'</td></tr>'
+    + '<tr><td style="padding:.35rem 0;color:var(--light);font-size:.76rem">申請日時</td><td>'+fmtDate(a.createdAt)+'</td></tr>'
+    + '</table>'
+    + '<div style="font-size:.76rem;color:var(--light);margin-bottom:.3rem">継続投稿を希望する理由</div>'
+    + '<div style="background:var(--bg);border-radius:6px;padding:.9rem;white-space:pre-wrap;font-size:.85rem;margin-bottom:1.5rem">'+(a.reason||'—')+'</div>'
+    + '<div style="font-size:.85rem;font-weight:700;margin-bottom:.6rem">❓ 追加確認のやりとり</div>'
+    + qHtml
+    + (a.status==='rejected' && a.rejectReason ? '<div style="margin-top:1rem;font-size:.83rem;color:var(--muted)">見送り理由: '+a.rejectReason+'</div>' : '')
+    + '<div class="factions" style="margin-top:1.5rem">'
+    + '<button class="btn btn-r" onclick="rejectAccount(\''+id+'\')">❌ 却下</button>'
+    + '<button class="btn btn-w" onclick="openNeedsInfoModal(\''+id+'\')">❓ 追加確認する</button>'
+    + '<button class="btn btn-g" onclick="approveAccount(\''+id+'\')">✅ 承認する</button>'
+    + '</div>';
+}
+
+function closeAccountDetail() {
+  document.getElementById('account-detail-panel').style.display = 'none';
+  document.getElementById('accounts-list-panel').style.display = 'block';
+  curAccountId = null;
+  renderAccountsList();
+}
+
+async function approveAccount(id) {
+  var a = accounts.find(function(x){ return x.id===id; });
+  if (!a) return;
+  try {
+    await window._updateDoc('accounts', id, { status:'approved', approvedAt: window._ts(), updatedAt: window._ts() });
+    toast('承認しました ✅');
+    sendResultMail('account_approved', { to: a.email, name: a.name, register_url: registerUrl() });
+    closeAccountDetail();
+  } catch(e) { toast('失敗: '+e.message, 'error'); }
+}
+
+async function rejectAccount(id) {
+  var a = accounts.find(function(x){ return x.id===id; });
+  if (!a) return;
+  var reason = prompt('却下理由（申請者へのメールに記載されます）:') || '';
+  try {
+    await window._updateDoc('accounts', id, { status:'rejected', rejectReason: reason, rejectedAt: window._ts(), updatedAt: window._ts() });
+    toast('却下しました');
+    sendResultMail('account_rejected', { to: a.email, name: a.name, reason: reason });
+    closeAccountDetail();
+  } catch(e) { toast('失敗: '+e.message, 'error'); }
+}
+
+// ---- 追加確認モーダル ----
+async function openNeedsInfoModal(id) {
+  _needsInfoTargetId = id;
+  await loadQuestionBank();
+  document.getElementById('needsinfo-presets').innerHTML = !questionBank.length
+    ? '<div style="font-size:.8rem;color:var(--light)">定型質問がまだ登録されていません（下の「質問バンク管理」から追加できます）</div>'
+    : questionBank.map(function(q){
+        return '<label style="display:flex;align-items:flex-start;gap:.5rem;font-size:.85rem;cursor:pointer">'
+          + '<input type="checkbox" class="ni-preset-check" value="'+encodeURIComponent(q.text)+'" style="margin-top:.2rem" />'
+          + '<span>'+q.text+'</span></label>';
+      }).join('');
+  document.getElementById('needsinfo-custom').value = '';
+  document.getElementById('needsinfo-modal').classList.add('on');
+}
+function closeNeedsInfoModal() {
+  document.getElementById('needsinfo-modal').classList.remove('on');
+  _needsInfoTargetId = null;
+}
+
+async function sendNeedsInfo() {
+  var id = _needsInfoTargetId;
+  if (!id) return;
+  var a = accounts.find(function(x){ return x.id===id; });
+  if (!a) return;
+
+  var selected = Array.from(document.querySelectorAll('.ni-preset-check:checked')).map(function(el){ return decodeURIComponent(el.value); });
+  var custom = document.getElementById('needsinfo-custom').value.trim();
+  if (custom) selected.push(custom);
+  if (!selected.length) { toast('質問を1つ以上選択・入力してください', 'warn'); return; }
+
+  var newQuestions = selected.map(function(text){
+    return { id: 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2,7), text: text, answer:'', askedAt: new Date().toISOString() };
+  });
+  var allQuestions = (a.questions||[]).concat(newQuestions);
+
+  var btn = document.getElementById('needsinfo-send-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 送信中…';
+  try {
+    await window._updateDoc('accounts', id, { questions: allQuestions, status:'needs_info', updatedAt: window._ts() });
+    toast('追加確認を送信しました ❓');
+    var questionsText = newQuestions.map(function(q,i){ return (i+1)+'. '+q.text; }).join('\n\n');
+    sendResultMail('account_needs_info', { to: a.email, name: a.name, questions: questionsText, register_url: registerUrl() });
+    closeNeedsInfoModal();
+    closeAccountDetail();
+  } catch(e) { toast('失敗: '+e.message, 'error'); }
+  finally { btn.disabled=false; btn.textContent='📨 送信する'; }
+}
+
+// ---- 質問バンク管理 ----
+async function loadQuestionBank() {
+  try {
+    var snap = await window._getDoc('settings','accountQuestions');
+    var data = snap.exists() ? snap.data() : {};
+    questionBank = data.questions || [];
+  } catch(e) { console.error('loadQuestionBank:', e); questionBank = []; }
+}
+
+async function openQuestionBank() {
+  await loadQuestionBank();
+  renderQBankList();
+  document.getElementById('qbank-modal').classList.add('on');
+}
+function closeQuestionBank() { document.getElementById('qbank-modal').classList.remove('on'); }
+
+function renderQBankList() {
+  var wrap = document.getElementById('qbank-list');
+  if (!questionBank.length) { wrap.innerHTML = '<div style="font-size:.82rem;color:var(--light)">まだ登録されていません。下から追加してください。</div>'; return; }
+  wrap.innerHTML = questionBank.map(function(q, idx){
+    return '<div style="display:flex;align-items:center;gap:.5rem">'
+      + '<input type="text" class="finput" value="'+q.text.replace(/"/g,'&quot;')+'" onchange="editQBankQuestion('+idx+', this.value)" style="flex:1" />'
+      + '<button class="btn btn-r btn-sm" onclick="deleteQBankQuestion('+idx+')">🗑️</button>'
+      + '</div>';
+  }).join('');
+}
+
+async function saveQuestionBank() {
+  try { await window._setDoc('settings','accountQuestions', { questions: questionBank }); }
+  catch(e) { toast('質問バンクの保存に失敗: '+e.message, 'error'); }
+}
+
+function addQBankQuestion() {
+  var input = document.getElementById('qbank-new-input');
+  var text = input.value.trim();
+  if (!text) return;
+  questionBank.push({ id: 'preset_'+Date.now(), text: text });
+  input.value = '';
+  renderQBankList();
+  saveQuestionBank();
+}
+function editQBankQuestion(idx, value) {
+  if (!questionBank[idx]) return;
+  questionBank[idx].text = value.trim();
+  saveQuestionBank();
+}
+function deleteQBankQuestion(idx) {
+  questionBank.splice(idx, 1);
+  renderQBankList();
+  saveQuestionBank();
 }
 
 
