@@ -1766,6 +1766,18 @@
       +'<div class="contact-done" id="contact-done">✅ お問い合わせを受け付けました。<br>内容を確認のうえ、ご連絡いたします。</div>';
   }
 
+  /* ---- お問い合わせフォーム：GAS自動返信 ---- */
+  var CONTACT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxOd6W-tYb-p9hwVtfPK9JVhGT-gxvF3SiS-l-N6px5FHjOsnhSrP5rA36TApmHLCNCWA/exec'; /* ← submit.htmlと同じGASのURL */
+  var CONTACT_ADMIN_NOTIFY_EMAIL = 'oruto1157oruto2@gmail.com,kvsrbe1236@yahoo.ne.jp,ankatsu.sumoto@gmail.com'; /* ← submit.htmlのADMIN_NOTIFY_EMAILと同じでOK */
+  function sendContactGasMail(payload){
+    if(!CONTACT_GAS_URL || CONTACT_GAS_URL.indexOf('XXXX')>=0) return;
+    fetch(CONTACT_GAS_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(payload)
+    }).catch(function(e){ console.error('mail send error:', e); });
+  }
+
   async function submitContact(){
     var name=(document.getElementById('c-name')||{}).value||'';
     var email=(document.getElementById('c-email')||{}).value||'';
@@ -1780,6 +1792,16 @@
     var db=window._db;var ops=window._firestoreOp;
     try{
       await ops.addDoc(ops.collection(db,'contacts'),{name:name,email:email,type:type,message:msg,createdAt:ops.serverTimestamp(),read:false});
+
+      var submittedAtStr = new Date().toLocaleString('ja-JP');
+      sendContactGasMail({ type:'contact_received', to:email, name:name, category:type, body:msg });
+      sendContactGasMail({
+        type:'contact_admin_notify', to:CONTACT_ADMIN_NOTIFY_EMAIL,
+        name:name, from_email:email, category:type, body:msg,
+        submitted_at:submittedAtStr,
+        admin_url: location.origin + location.pathname.replace('index.html','') + 'admin.html'
+      });
+
       document.getElementById('contact-form').style.display='none';
       document.getElementById('contact-done').classList.add('visible');
       document.title='お問い合わせ完了 | アンカツ＋';
