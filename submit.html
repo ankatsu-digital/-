@@ -439,7 +439,8 @@
   // GAS自動返信メール & 投稿状況トラッキング
   // ============================================================
   var SUBMIT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxOd6W-tYb-p9hwVtfPK9JVhGT-gxvF3SiS-l-N6px5FHjOsnhSrP5rA36TApmHLCNCWA/exec'; /* ← GASのウェブアプリURLに書き換え */
-  var ADMIN_NOTIFY_EMAIL = 'ankatsu.sumoto@gmail.com,kvsrbe1236@yahoo.ne.jp,oruto1157oruto2@gmail.com'; /* ← 投稿申請を通知したい編集部のメールアドレスに書き換え（複数宛てたい場合はカンマ区切りでOK） */
+  var ADMIN_NOTIFY_EMAIL = 'oruto1157oruto2@gmail.com,kvsrbe1236@yahoo.ne.jp,ankatsu.sumoto@gmail.com'; /* ← 投稿申請を通知したい編集部のメールアドレスに書き換え（複数宛てたい場合はカンマ区切りでOK） */
+  var ADMIN_URL = location.origin + location.pathname.replace('submit.html', 'admin.html'); /* ← 管理画面のURLが違う場合はここを直接書き換え（例: 'https://example.com/admin.html'） */
   var MY_SUBS_KEY = 'ankatsu_my_submissions';
 
   function saveMySubmission(id, title) {
@@ -500,13 +501,16 @@
     }).join('');
   }
 
-  function routeStatus() {
+  var _lastView = 'form'; // 'form' | 'done' — #status以外の時にどちらを見せるか
+
+  function applyView() {
     var onStatus = location.hash.indexOf('#status') === 0;
     document.getElementById('pg-status').style.display = onStatus ? 'block' : 'none';
-    document.getElementById('pg-form').style.display = onStatus ? 'none' : 'block';
-    document.getElementById('pg-done').classList.remove('on');
+    document.getElementById('pg-form').style.display = (!onStatus && _lastView === 'form') ? 'block' : 'none';
+    document.getElementById('pg-done').classList.toggle('on', !onStatus && _lastView === 'done');
     if (onStatus) renderStatusList();
   }
+  function routeStatus() { applyView(); }
   window.addEventListener('hashchange', routeStatus);
   document.addEventListener('DOMContentLoaded', routeStatus);
 
@@ -686,12 +690,12 @@
         category: data.category,
         submitted_at: submittedAtStr,
         body: bodyExcerpt,
-        admin_url: location.origin + location.pathname.replace('submit.html', 'admin.html')
+        admin_url: ADMIN_URL // ← 固定のURLを使いたい場合はこの下の定数を書き換えてください
       });
 
       // 完了表示
-      document.getElementById('pg-form').style.display = 'none';
-      document.getElementById('pg-done').classList.add('on');
+      _lastView = 'done';
+      applyView();
       document.getElementById('done-email').textContent = data.authorEmail;
       window.scrollTo(0,0);
     } catch(e) {
