@@ -9,7 +9,7 @@
   <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, serverTimestamp }
+    import { getFirestore, collection, addDoc, serverTimestamp, doc, getDoc, getDocs, query, where }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -30,6 +30,23 @@
         createdAt: serverTimestamp(),
         status: 'pending'
       }));
+    };
+
+    // 投稿状況確認ページ用：申請IDから1件だけ取得
+    window._getSubmission = async function(id) {
+      var snap = await getDoc(doc(db, 'submissions', id));
+      return snap.exists() ? Object.assign({ id: snap.id }, snap.data()) : null;
+    };
+
+    // アンカツMAPに登録済みのスポット一覧を取得（公開中のみ）
+    window._getPublishedSpots = async function() {
+      try {
+        var snap = await getDocs(collection(db, 'spots'));
+        return snap.docs
+          .map(function(d){ return Object.assign({ id: d.id }, d.data()); })
+          .filter(function(s){ return s.published !== false; })
+          .sort(function(a,b){ return (a.title||'').localeCompare(b.title||'','ja'); });
+      } catch (e) { console.error('spots読み込みエラー:', e); return []; }
     };
 
     document.dispatchEvent(new Event('fb-ready'));
@@ -150,7 +167,10 @@
 
   <header>
     <a href="index.html" class="hlogo">アンカツ＋</a>
-    <a href="index.html" class="hback">← サイトに戻る</a>
+    <div style="display:flex;align-items:center;gap:1rem">
+      <a href="#status" class="hback" id="status-link">📋 投稿状況を確認</a>
+      <a href="index.html" class="hback">← サイトに戻る</a>
+    </div>
   </header>
 
   <main>
@@ -219,6 +239,38 @@
               <label class="flabel">タグ（カンマ区切り）</label>
               <input id="s-tags" type="text" class="finput" placeholder="洲本, 移住, イベント" />
             </div>
+          </div>
+
+          <div class="frow">
+            <label class="flabel">📝 記事テンプレート（任意）</label>
+            <select id="s-body-template" class="fselect">
+              <option value="">-- テンプレートを選ぶ（本文に自動入力されます）--</option>
+              <option value="event_marche">🎪 イベント：マルシェ・出店</option>
+              <option value="event_seminar">📚 イベント：講座・セミナー・体験会</option>
+              <option value="event_matsuri">🏯 イベント：祭り・地域行事</option>
+              <option value="akiya">🏠 空き家活用の紹介</option>
+              <option value="shop">🛍️ お店・商店街の紹介</option>
+              <option value="interview">🎙️ インタビュー</option>
+              <option value="oshirase">📢 お知らせ・告知</option>
+              <option value="machi">🏘️ まちの話題（自由記事）</option>
+            </select>
+            <span class="fhint">選ぶと下の本文欄に見出し入りのひな形が入ります。何も選ばず一から書いてもOKです</span>
+          </div>
+
+          <div class="frow" id="s-eventdate-wrap" style="display:none">
+            <label class="flabel">📅 イベント開催日</label>
+            <input id="s-eventdate" type="date" class="finput" />
+          </div>
+          <div class="frow" id="s-eventtime-wrap" style="display:none">
+            <label class="flabel">🕒 イベント時間</label>
+            <input id="s-eventtime" type="text" class="finput" placeholder="10:00-16:00" />
+          </div>
+          <div class="frow" id="s-mapspot-wrap">
+            <label class="flabel">🗺️ アンカツMAPのスポット（任意）</label>
+            <select id="s-mapspot" class="fselect">
+              <option value="">-- 紐づけしない --</option>
+            </select>
+            <span class="fhint">この記事に関連するスポットが地図に登録済みの場合は選んでください。まだ登録されていない場合や不明な場合は空欄のままでOKです（編集部が確認のうえ対応します）</span>
           </div>
 
           <div class="frow">
@@ -299,6 +351,17 @@
       <a href="index.html" class="done-btn">← アンカツ＋ トップへ</a>
     </div>
 
+    <!-- 投稿状況確認 -->
+    <div id="pg-status" style="display:none">
+      <div class="fcard">
+        <div class="fhead">
+          <h2>📋 投稿状況の確認</h2>
+          <p>このブラウザから送信した投稿の状況です（他の端末からは確認できません）</p>
+        </div>
+        <div class="fbody" id="status-list"></div>
+      </div>
+    </div>
+
   </main>
 
   <footer>
@@ -306,6 +369,147 @@
   </footer>
 
   <script>
+  // ============================================================
+  // 記事本文テンプレート（選ぶと本文欄に自動入力される・カテゴリ問わず利用可）
+  // ============================================================
+  var BODY_TEMPLATES = {
+    event_marche:
+      '<p>【開催概要をここに書いてください】</p>' +
+      '<h2>開催日時・場所</h2>' +
+      '<p>日時：【〇月〇日（〇）10:00〜16:00】<br>場所：【会場名・住所】</p>' +
+      '<h2>出店・内容</h2>' +
+      '<p>【出店ブースや販売品、ステージ企画などを書いてください】</p>' +
+      '<h2>主催・問い合わせ</h2>' +
+      '<p>主催：【団体名】<br>問い合わせ：【連絡先】</p>',
+    event_seminar:
+      '<p>【講座・セミナーの概要をここに書いてください】</p>' +
+      '<h2>開催日時・場所</h2>' +
+      '<p>日時：【〇月〇日（〇）〇時〜〇時】<br>場所：【会場名・住所】</p>' +
+      '<h2>内容・対象</h2>' +
+      '<p>【講座の内容、対象者、定員などを書いてください】</p>' +
+      '<h2>参加方法・お申し込み</h2>' +
+      '<p>参加費：【無料／〇〇円】<br>申し込み：【方法・締切】<br>問い合わせ：【連絡先】</p>',
+    event_matsuri:
+      '<p>【祭り・行事の概要をここに書いてください】</p>' +
+      '<h2>開催日時・場所</h2>' +
+      '<p>日時：【〇月〇日（〇）〇時〜】<br>場所：【会場名・住所】</p>' +
+      '<h2>見どころ・プログラム</h2>' +
+      '<p>【当日の流れや見どころを書いてください】</p>' +
+      '<blockquote>【地域の方のコメントなどがあれば】</blockquote>' +
+      '<h2>主催・問い合わせ</h2>' +
+      '<p>主催：【団体名】<br>問い合わせ：【連絡先】</p>',
+    akiya:
+      '<p>【空き家の概要・場所・築年数などをここに書いてください】</p>' +
+      '<h2>活用の内容</h2>' +
+      '<p>【どんな用途に使われているか／使う予定かを書いてください（カフェ、工房、シェアアトリエ等）】</p>' +
+      '<h2>きっかけ・想い</h2>' +
+      '<p>【活用に至った経緯や、関わった人の想いを書いてください】</p>' +
+      '<h2>問い合わせ・見学</h2>' +
+      '<p>【見学や利用の相談先があれば書いてください】</p>',
+    shop:
+      '<p>【お店・施設の紹介文をここに書いてください】</p>' +
+      '<h2>お店の情報</h2>' +
+      '<p>営業時間：【10:00-18:00 など】<br>定休日：【水曜など】<br>住所：【住所】</p>' +
+      '<h2>おすすめポイント</h2>' +
+      '<p>【メニューや商品、こだわりなどを書いてください】</p>' +
+      '<h2>問い合わせ</h2>' +
+      '<p>【電話番号・SNS等があれば】</p>',
+    interview:
+      '<p>【インタビュー対象者の紹介・全体の概要をここに書いてください】</p>' +
+      '<h2>プロフィール</h2>' +
+      '<p>【名前・年齢・肩書きなど】</p>' +
+      '<h2>お話をうかがいました</h2>' +
+      '<blockquote>【印象的な発言を引用】</blockquote>' +
+      '<p>【インタビュー本文をここに書いてください】</p>' +
+      '<h2>今後の展望</h2>' +
+      '<p>【今後の目標や読者へのメッセージなど】</p>',
+    oshirase:
+      '<p>【お知らせ・告知の内容をここに書いてください】</p>' +
+      '<h2>詳細</h2>' +
+      '<p>対象：【対象者】<br>期間・締切：【いつまで】<br>連絡先：【問い合わせ先】</p>',
+    machi:
+      '<p>【まちの話題の概要をここに書いてください】</p>' +
+      '<h2>詳しい内容</h2>' +
+      '<p>【本文をここに書いてください】</p>' +
+      '<h2>今後について</h2>' +
+      '<p>【今後の予定や読者へのひとことなど】</p>'
+  };
+
+  // ============================================================
+  // GAS自動返信メール & 投稿状況トラッキング
+  // ============================================================
+  var SUBMIT_GAS_URL = 'https://script.google.com/macros/s/XXXXXXXXXXXXXXXX/exec'; /* ← GASのウェブアプリURLに書き換え */
+  var ADMIN_NOTIFY_EMAIL = 'admin@example.com'; /* ← 投稿申請を通知したい編集部のメールアドレスに書き換え（複数宛てたい場合はカンマ区切りでOK） */
+  var MY_SUBS_KEY = 'ankatsu_my_submissions';
+
+  function saveMySubmission(id, title) {
+    var list = [];
+    try { list = JSON.parse(localStorage.getItem(MY_SUBS_KEY) || '[]'); } catch (e) {}
+    list.unshift({ id: id, title: title, savedAt: new Date().toISOString() });
+    localStorage.setItem(MY_SUBS_KEY, JSON.stringify(list.slice(0, 30)));
+  }
+  function getMySubmissionIds() {
+    try { return JSON.parse(localStorage.getItem(MY_SUBS_KEY) || '[]').map(function (x) { return x.id; }); }
+    catch (e) { return []; }
+  }
+  function sendGasMail(payload) {
+    if (!SUBMIT_GAS_URL || SUBMIT_GAS_URL.indexOf('XXXX') >= 0) return; // URL未設定なら何もしない
+    fetch(SUBMIT_GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    }).catch(function (e) { console.error('mail send error:', e); });
+  }
+  function fmtDateJa(ts) {
+    try { var d = (ts && ts.toDate) ? ts.toDate() : new Date(ts); return d.toLocaleString('ja-JP'); }
+    catch (e) { return '—'; }
+  }
+
+  async function renderStatusList() {
+    var ids = getMySubmissionIds();
+    var wrap = document.getElementById('status-list');
+    if (!ids.length) {
+      wrap.innerHTML = '<p style="color:var(--muted);font-size:.88rem">このブラウザからの投稿履歴は見つかりませんでした。</p>';
+      return;
+    }
+    wrap.innerHTML = '<p style="color:var(--muted);font-size:.85rem">読み込み中…</p>';
+    if (!window._getSubmission) {
+      await new Promise(function (res) { document.addEventListener('fb-ready', res, { once: true }); });
+    }
+    var rows = [];
+    for (var i = 0; i < ids.length; i++) {
+      try { var s = await window._getSubmission(ids[i]); if (s) rows.push(s); } catch (e) {}
+    }
+    if (!rows.length) {
+      wrap.innerHTML = '<p style="color:var(--muted);font-size:.88rem">投稿情報が見つかりませんでした。</p>';
+      return;
+    }
+    wrap.innerHTML = rows.map(function (s) {
+      var badge = s.status === 'approved'
+        ? '<span style="background:var(--gpale);color:var(--green);padding:.2rem .6rem;border-radius:12px;font-size:.75rem;font-weight:700">✅ 掲載済み</span>'
+        : s.status === 'rejected'
+        ? '<span style="background:#f3f3f3;color:var(--muted);padding:.2rem .6rem;border-radius:12px;font-size:.75rem;font-weight:700">見送り</span>'
+        : '<span style="background:#fff3cd;color:#856404;padding:.2rem .6rem;border-radius:12px;font-size:.75rem;font-weight:700">⏳ 審査中</span>';
+      var link = (s.status === 'approved' && s.publishedSlug)
+        ? '<a href="index.html#article/' + encodeURIComponent(s.publishedSlug) + '" target="_blank" style="font-size:.8rem;margin-left:.5rem">記事を見る →</a>' : '';
+      return '<div style="padding:.9rem 0;border-bottom:1px solid var(--border)">'
+        + '<div style="font-weight:700;font-size:.9rem;margin-bottom:.3rem">' + s.title + ' ' + badge + link + '</div>'
+        + '<div style="font-size:.76rem;color:var(--light)">申請日時: ' + fmtDateJa(s.createdAt) + '</div>'
+        + (s.status === 'rejected' && s.rejectReason ? '<div style="font-size:.8rem;color:var(--muted);margin-top:.3rem">見送り理由: ' + s.rejectReason + '</div>' : '')
+        + '</div>';
+    }).join('');
+  }
+
+  function routeStatus() {
+    var onStatus = location.hash.indexOf('#status') === 0;
+    document.getElementById('pg-status').style.display = onStatus ? 'block' : 'none';
+    document.getElementById('pg-form').style.display = onStatus ? 'none' : 'block';
+    document.getElementById('pg-done').classList.remove('on');
+    if (onStatus) renderStatusList();
+  }
+  window.addEventListener('hashchange', routeStatus);
+  document.addEventListener('DOMContentLoaded', routeStatus);
+
   // ============================================================
   // エディタ
   // ============================================================
@@ -349,7 +553,42 @@
       if (url) { prev.src=url; prev.style.display='block'; }
       else     { prev.style.display='none'; }
     });
+
+    document.getElementById('s-cat').addEventListener('change', function (e) {
+      var isEvent = e.target.value === 'イベント';
+      ['s-eventdate-wrap', 's-eventtime-wrap'].forEach(function (id) {
+        document.getElementById(id).style.display = isEvent ? 'flex' : 'none';
+      });
+    });
+
+    document.getElementById('s-body-template').addEventListener('change', function (e) {
+      var key = e.target.value;
+      if (!key) return;
+      var tpl = BODY_TEMPLATES[key];
+      if (!tpl) return;
+      if (_sMode === 'html') sMode('vis');
+      document.getElementById('s-body-vis').innerHTML = tpl;
+    });
+
+    loadMapSpotOptions();
   });
+
+  var SPOT_TYPE_EMOJI = { event:'🎉', akiya:'🏠', food:'🍴', facility:'🏛️', sightseeing:'⛩️' };
+
+  async function loadMapSpotOptions() {
+    var sel = document.getElementById('s-mapspot');
+    if (!window._getPublishedSpots) {
+      await new Promise(function (res) { document.addEventListener('fb-ready', res, { once: true }); });
+    }
+    try {
+      var spots = await window._getPublishedSpots();
+      if (!spots.length) return;
+      sel.innerHTML = '<option value="">-- 紐づけしない --</option>' + spots.map(function (s) {
+        var emoji = SPOT_TYPE_EMOJI[s.type] || '📍';
+        return '<option value="' + s.id + '">' + emoji + ' ' + s.title + '</option>';
+      }).join('');
+    } catch (e) { console.error('スポット一覧の読み込みに失敗:', e); }
+  }
 
   // ============================================================
   // バリデーション
@@ -408,7 +647,10 @@
       body:        getBody(),
       slug:        'sub-' + Date.now(),
       author:      document.getElementById('s-name').value.trim(),
-      featured:    false
+      featured:    false,
+      eventDate:   document.getElementById('s-eventdate') ? document.getElementById('s-eventdate').value : '',
+      eventTime:   document.getElementById('s-eventtime') ? document.getElementById('s-eventtime').value : '',
+      mapSpotId:   document.getElementById('s-mapspot') ? document.getElementById('s-mapspot').value : ''
     };
 
     // Firebase準備確認
@@ -417,7 +659,36 @@
     }
 
     try {
-      await window._submitForm(data);
+      var ref = await window._submitForm(data);
+
+      // ローカルに申請履歴を保存 + 受付メール送信（申請者宛）
+      saveMySubmission(ref.id, data.title);
+      var submittedAtStr = new Date().toLocaleString('ja-JP');
+      var bodyExcerpt = getBody().replace(/<[^>]*>/g, '').slice(0, 800);
+      sendGasMail({
+        type: 'received',
+        to: data.authorEmail,
+        name: data.authorName,
+        title: data.title,
+        category: data.category,
+        submitted_at: submittedAtStr,
+        body: bodyExcerpt,
+        status_url: location.origin + location.pathname + '#status'
+      });
+
+      // 管理者への通知メール
+      sendGasMail({
+        type: 'admin_notify',
+        to: ADMIN_NOTIFY_EMAIL,
+        name: data.authorName,
+        from_email: data.authorEmail,
+        title: data.title,
+        category: data.category,
+        submitted_at: submittedAtStr,
+        body: bodyExcerpt,
+        admin_url: location.origin + location.pathname.replace('submit.html', 'admin.html')
+      });
+
       // 完了表示
       document.getElementById('pg-form').style.display = 'none';
       document.getElementById('pg-done').classList.add('on');
