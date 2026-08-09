@@ -1036,12 +1036,19 @@ var VTITLES = {
   breaking:'📡 速報バー設定', json:'📦 JSON入出力'
 };
 
-// 投稿者(contributor)ロールがアクセスできるビュー。それ以外は「アクセス権がありません」を表示する。
-var CONTRIBUTOR_ALLOWED_VIEWS = ['dashboard', 'authors'];
+// 承認済み投稿者が使えるビュー（記事の投稿・自分の記事の編集・プロフィール編集）
+var CONTRIBUTOR_APPROVED_VIEWS = ['authors', 'new', 'edit', 'articles'];
+var _myPermissions = []; // ログイン中の投稿者に個別付与された権限（例: ['contacts.view']）
 
 function canAccessView(key) {
   if (_role === 'admin') return true;
-  if (_role === 'contributor') return CONTRIBUTOR_ALLOWED_VIEWS.indexOf(key) >= 0;
+  if (_role === 'contributor') {
+    if (key === 'dashboard') return true; // 審査状況の確認・質問への回答は誰でも見られる
+    if (!_myAccount || _myAccount.status !== 'approved') return false; // 未承認は他のページに入れない
+    if (CONTRIBUTOR_APPROVED_VIEWS.indexOf(key) >= 0) return true;
+    var perm = VIEW_PERMISSION_MAP[key];
+    return perm ? _myPermissions.indexOf(perm) >= 0 : false;
+  }
   return false;
 }
 
@@ -1055,8 +1062,8 @@ function showAccessDenied(key) {
     deny.innerHTML = '<div class="panel"><div style="padding:3.5rem 2rem;text-align:center;color:var(--muted)">'
       + '<div style="font-size:2.5rem;margin-bottom:1rem">🚫</div>'
       + '<div style="font-weight:700;font-size:1.05rem;color:var(--text);margin-bottom:.5rem">アクセス権がありません</div>'
-      + '<div style="font-size:.85rem;line-height:1.8">このページを利用する権限がありません。<br>投稿や執筆者プロフィールの編集はマイページから行ってください。</div>'
-      + '<a href="register.html" class="btn btn-g" style="margin-top:1.5rem;display:inline-flex">🧑\u200d💼 マイページへ</a>'
+      + '<div style="font-size:.85rem;line-height:1.8">このページを利用する権限がありません。<br>審査状況の確認や質問への回答は、ダッシュボードから行えます。</div>'
+      + '<button class="btn btn-g" style="margin-top:1.5rem" onclick="goView(\'dashboard\')">🏠 ダッシュボードへ</button>'
       + '</div></div>';
     document.getElementById('body').appendChild(deny);
   }
@@ -1065,7 +1072,7 @@ function showAccessDenied(key) {
   document.querySelectorAll('.sb-btn[data-v]').forEach(function(b){ b.classList.toggle('on', b.dataset.v===key); });
 }
 
-function goView(key) {
+async function goView(key) {
   if (!canAccessView(key)) { showAccessDenied(key); closeSB(); window.scrollTo(0,0); return; }
 
   document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('on'); });
@@ -1074,13 +1081,14 @@ function goView(key) {
   document.getElementById('page-title').textContent = VTITLES[key] || '';
   if (key==='new'||key==='edit') document.getElementById('form-title').textContent = VTITLES[key];
   document.querySelectorAll('.sb-btn[data-v]').forEach(function(b){ b.classList.toggle('on', b.dataset.v===key); });
+  if (key==='new'||key==='edit') { await Promise.all([loadSeries(), loadSpots(), loadAuthors()]); populateAuthorDatalist(); }
   if (key==='new')       { resetForm(); editingId=null; }
-  if (key==='articles')  renderArticles();
+  if (key==='articles')  { await loadArticles(); renderArticles(); }
   if (key==='dashboard') {
     var isAdmin = _role === 'admin';
     document.getElementById('dash-admin-content').style.display = isAdmin ? 'block' : 'none';
     document.getElementById('dash-contributor-content').style.display = isAdmin ? 'none' : 'block';
-    if (isAdmin) renderDash();
+    if (isAdmin) renderDash(); else renderContributorDashboard();
   }
   if (key==='contacts')  renderContacts();
   if (key==='submissions') renderSubmissions();
@@ -1091,12 +1099,12 @@ function goView(key) {
     renderAccountsList();
   }
   if (key==='drafts')    renderDrafts();
-  if (key==='series')    { closeSeriesForm(); renderSeriesAdminList(); }
+  if (key==='series')    { closeSeriesForm(); await loadSeries(); renderSeriesAdminList(); }
   if (key==='authors')   {
     if (_role === 'admin') { closeAuthorForm(); renderAuthorsAdminList(); }
     else { renderContributorAuthorProfile(); }
   }
-  if (key==='spots')     { closeSpotForm(); renderSpotsAdminList(); }
+  if (key==='spots')     { closeSpotForm(); await loadSpots(); renderSpotsAdminList(); }
   if (key==='breaking')  loadBreaking();
   closeSB();
   window.scrollTo(0,0);
@@ -1133,9 +1141,12 @@ function initLogin() {
 // ============================================================
 // 認証状態監視・ロール判定
 // ============================================================
-// admins/{uid} が存在すれば管理者、accounts/{uid}.status==='approved' なら
-// 承認済み投稿者。どちらでもなければ管理画面へのアクセス権なしとして弾く。
-var _role = null; // 'admin' | 'contributor' | null
+// admins/{uid} が存在すれば管理者。accounts/{uid} が存在すれば投稿者
+// （審査状況に関わらずログインはできる。実際に使える機能は状態次第）。
+// どちらの記録もなければ管理画面へのアクセス権なしとして弾く。
+// ============================================================
+var _role = null;       // 'admin' | 'contributor' | null
+var _myAccount = null;  // 投稿者ロールの場合、自分のaccountsドキュメント
 
 async function detectRole(uid) {
   try {
@@ -1144,7 +1155,7 @@ async function detectRole(uid) {
   } catch (e) { /* 管理者でなければ読めないのでエラーは無視 */ }
   try {
     var accSnap = await window._getDoc('accounts', uid);
-    if (accSnap.exists() && accSnap.data().status === 'approved') return 'contributor';
+    if (accSnap.exists()) { _myAccount = Object.assign({ id: uid }, accSnap.data()); return 'contributor'; }
   } catch (e) { console.error('detectRole (accounts):', e); }
   return null;
 }
@@ -1165,11 +1176,13 @@ function initAuth() {
       if (role === 'admin') {
         loadAll();
       } else {
-        document.getElementById('dash-contrib-name').textContent = user.email;
+        _myPermissions = _myAccount.permissions || [];
+        document.getElementById('dash-contrib-name').textContent = _myAccount.name || user.email;
         goView('dashboard');
       }
     } else {
       _role = null;
+      _myAccount = null;
       document.getElementById('pg-login').style.display  = 'flex';
       document.getElementById('pg-admin').classList.remove('on');
     }
@@ -1626,25 +1639,33 @@ function renderDash() {
 // ============================================================
 function renderArticles(filter) {
   filter = filter || '';
+  var base = articles;
+  var myUid = (window._auth && window._auth.currentUser) ? window._auth.currentUser.uid : null;
+  var canSeeAll = _role === 'admin' || _myPermissions.indexOf('articles.edit') >= 0;
+  if (_role === 'contributor' && !canSeeAll) {
+    base = base.filter(function(a){ return a.authorUid === myUid; });
+  }
   var list = filter
-    ? articles.filter(function(a){ return (a.title||'').indexOf(filter)>=0||(a.category||'').indexOf(filter)>=0; })
-    : articles;
+    ? base.filter(function(a){ return (a.title||'').indexOf(filter)>=0||(a.category||'').indexOf(filter)>=0; })
+    : base;
   var tbody = document.getElementById('art-tbody');
   var empty = document.getElementById('art-empty');
   if (!list.length) { tbody.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display = 'none';
   tbody.innerHTML = list.map(function(a){
     var scheduleBadge = isArticleScheduled(a) ? '<span class="tag tag-y" title="'+fmtDate(a.createdAt)+'に公開予定">⏰予約中</span>' : '';
+    var isOwn = myUid && a.authorUid === myUid;
+    var canEdit   = _role === 'admin' || _myPermissions.indexOf('articles.edit')   >= 0 || isOwn;
+    var canDelete = _role === 'admin' || _myPermissions.indexOf('articles.delete') >= 0 || isOwn;
+    var acts = (canEdit   ? '<button class="btn btn-o btn-sm" onclick="startEdit(\''+a.id+'\')">✏️</button>' : '')
+             + (canDelete ? '<button class="btn btn-r btn-sm" onclick="askDel(\''+a.id+'\',\''+a.title.replace(/'/g,"\\'")+'\')">🗑️</button>' : '');
     return '<tr>'
       +'<td>'+(a.thumbnail?'<img src="'+a.thumbnail+'" class="rthumb" loading="lazy"/>':'<div class="rthumb-ph">📰</div>')+'</td>'
       +'<td><div style="font-weight:600;font-size:.83rem">'+a.title+'</div><div style="font-size:.7rem;color:var(--light)">/'+(a.slug||a.id)+'</div>'+(a.featured?'<span class="tag tag-y">⭐注目</span>':'')+scheduleBadge+'</td>'
       +'<td><span class="tag tag-g">'+(a.category||'—')+'</span></td>'
       +'<td style="font-size:.78rem">'+(a.author||'—')+'</td>'
       +'<td style="font-size:.76rem;white-space:nowrap">'+fmtDate(a.createdAt)+'</td>'
-      +'<td><div class="acts">'
-      +'<button class="btn btn-o btn-sm" onclick="startEdit(\''+a.id+'\')">✏️</button>'
-      +'<button class="btn btn-r btn-sm" onclick="askDel(\''+a.id+'\',\''+a.title.replace(/'/g,"\\'")+'\')">🗑️</button>'
-      +'</div></td></tr>';
+      +'<td><div class="acts">'+acts+'</div></td></tr>';
   }).join('');
 }
 
@@ -1948,7 +1969,122 @@ var ACC_STATUS_LABEL = {
   rejected:   ['❌ 見送り', '']
 };
 
+// 投稿者ごとに個別付与できる権限の一覧（管理者が「投稿者アカウント」画面で設定する）
+var PERMISSION_DEFS = [
+  { group: '✉️ お問い合わせ', keys: [
+    { key: 'contacts.view',   label: '閲覧できる' },
+    { key: 'contacts.delete', label: '削除できる' }
+  ]},
+  { group: '🗺️ 地図スポット', keys: [
+    { key: 'spots.edit',   label: '閲覧・作成・編集できる' },
+    { key: 'spots.delete', label: '削除できる' }
+  ]},
+  { group: '📚 連載・特集', keys: [
+    { key: 'series.edit',   label: '閲覧・作成・編集できる' },
+    { key: 'series.delete', label: '削除できる' }
+  ]},
+  { group: '📰 記事', keys: [
+    { key: 'articles.edit',   label: '自分以外が書いた記事も編集できる' },
+    { key: 'articles.delete', label: '記事を削除できる' }
+  ]},
+  { group: '📡 速報バー', keys: [
+    { key: 'breaking.edit', label: '設定を編集できる' }
+  ]}
+];
+// 管理画面のどのページ(key)を、どの権限があれば開けるか
+var VIEW_PERMISSION_MAP = {
+  contacts: 'contacts.view',
+  spots:    'spots.edit',
+  series:   'series.edit',
+  articles: 'articles.edit',
+  breaking: 'breaking.edit'
+};
+
+function permissionsPanelHtml(current) {
+  current = current || [];
+  return PERMISSION_DEFS.map(function(g){
+    return '<div style="margin-bottom:.9rem">'
+      + '<div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:.4rem">'+g.group+'</div>'
+      + g.keys.map(function(k){
+          var checked = current.indexOf(k.key)>=0 ? 'checked' : '';
+          return '<label style="display:flex;align-items:center;gap:.5rem;font-size:.84rem;margin-bottom:.3rem;cursor:pointer">'
+            + '<input type="checkbox" class="perm-check" value="'+k.key+'" '+checked+' /> '+k.label
+            + '</label>';
+        }).join('')
+      + '</div>';
+  }).join('');
+}
+
+async function savePermissions(id) {
+  var checked = Array.from(document.querySelectorAll('.perm-check:checked')).map(function(el){ return el.value; });
+  try {
+    await window._updateDoc('accounts', id, { permissions: checked, updatedAt: window._ts() });
+    toast('権限を保存しました ✅');
+    await loadAccounts();
+  } catch(e) { toast('権限の保存に失敗: '+e.message, 'error'); }
+}
+
 function registerUrl() { return location.origin + location.pathname.replace('admin.html', 'register.html'); }
+
+// ---- 投稿者ロール用：ダッシュボード（審査状況の確認・追加確認への回答・投稿導線） ----
+function renderContributorDashboard() {
+  var acc = _myAccount || {};
+  var st = ACC_STATUS_LABEL[acc.status] || ['-',''];
+  var body = '<div class="panel"><div style="padding:2rem">'
+    + '<h2 style="font-family:var(--serif);font-size:1.2rem;margin-bottom:.6rem">ようこそ、'+(acc.name||'-')+' さん</h2>'
+    + '<div style="margin-bottom:1.25rem">審査状況: <span class="tag '+st[1]+'" style="'+(st[1]?'':'background:#f3f3f3;color:var(--muted)')+'">'+st[0]+'</span></div>';
+
+  if (acc.status === 'rejected' && acc.rejectReason) {
+    body += '<div style="background:var(--bg);border-radius:6px;padding:.9rem 1.1rem;font-size:.85rem;color:var(--muted);margin-bottom:1rem">見送り理由: '+acc.rejectReason+'</div>';
+  }
+  if (acc.status === 'pending') {
+    body += '<p style="color:var(--muted);font-size:.9rem;line-height:1.9">編集部にて審査中です。しばらくお待ちください。</p>';
+  }
+
+  var pendingQ = (acc.questions||[]).filter(function(q){ return !q.answer; });
+  if (acc.status === 'needs_info' && pendingQ.length) {
+    body += '<div style="font-weight:700;font-size:.9rem;margin:.5rem 0 .75rem">❓ 編集部からの確認事項</div>';
+    body += pendingQ.map(function(q){
+      return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:.75rem">'
+        + '<div style="font-weight:700;font-size:.85rem;margin-bottom:.5rem">Q. '+q.text+'</div>'
+        + '<textarea class="finput" id="dq-'+q.id+'" placeholder="回答を入力してください" style="min-height:80px;resize:vertical"></textarea>'
+        + '</div>';
+    }).join('');
+    body += '<button class="btn btn-g btn-sm" onclick="submitMyAnswers()">回答を送信する →</button>';
+  }
+
+  if (acc.status === 'approved') {
+    body += '<p style="color:var(--muted);font-size:.9rem;line-height:1.9;margin-bottom:1.25rem">記事の投稿や、ご自身の執筆者プロフィールの編集ができます。</p>'
+      + '<div style="display:flex;gap:.65rem;flex-wrap:wrap">'
+      + '<button class="btn btn-g" onclick="goView(\'new\')">📝 新しい記事を投稿する</button>'
+      + '<button class="btn btn-o" onclick="goView(\'articles\')">📰 自分の記事一覧</button>'
+      + '<button class="btn btn-o" onclick="goView(\'authors\')">✍️ プロフィールを編集</button>'
+      + '</div>';
+  }
+
+  body += '</div></div>';
+  document.getElementById('dash-contributor-content').innerHTML = body;
+}
+
+async function submitMyAnswers() {
+  var acc = _myAccount;
+  if (!acc) return;
+  var updated = (acc.questions||[]).map(function(q){
+    if (q.answer) return q;
+    var ta = document.getElementById('dq-'+q.id);
+    var val = ta ? ta.value.trim() : '';
+    if (!val) return q;
+    return Object.assign({}, q, { answer: val, answeredAt: new Date().toISOString() });
+  });
+  if (updated.some(function(q){ return !q.answer; })) { toast('すべての質問に回答してください', 'warn'); return; }
+  try {
+    await window._updateDoc('accounts', acc.id, { questions: updated, status: 'pending', updatedAt: window._ts() });
+    toast('回答を送信しました。編集部で再度確認します。');
+    var snap = await window._getDoc('accounts', acc.id);
+    _myAccount = Object.assign({ id: acc.id }, snap.data());
+    renderContributorDashboard();
+  } catch (e) { toast('送信に失敗しました: ' + e.message, 'error'); }
+}
 
 async function loadAccounts() {
   try {
@@ -2020,6 +2156,12 @@ function openAccountDetail(id) {
     + '<div style="font-size:.85rem;font-weight:700;margin-bottom:.6rem">❓ 追加確認のやりとり</div>'
     + qHtml
     + (a.status==='rejected' && a.rejectReason ? '<div style="margin-top:1rem;font-size:.83rem;color:var(--muted)">見送り理由: '+a.rejectReason+'</div>' : '')
+    + '<div style="font-size:.85rem;font-weight:700;margin:1.5rem 0 .6rem">🔐 この投稿者に個別に許可する権限</div>'
+    + '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:1rem 1.1rem">'
+    + '<div style="font-size:.78rem;color:var(--light);margin-bottom:.75rem">通常の投稿者は「自分のプロフィール編集」しかできません。ここでチェックした項目だけ、管理画面の該当ページにアクセスできるようになります。</div>'
+    + permissionsPanelHtml(a.permissions)
+    + '<button class="btn btn-g btn-sm" style="margin-top:.4rem" onclick="savePermissions(\''+id+'\')">💾 権限を保存</button>'
+    + '</div>'
     + '<div class="factions" style="margin-top:1.5rem">'
     + '<button class="btn btn-r" onclick="rejectAccount(\''+id+'\')">❌ 却下</button>'
     + '<button class="btn btn-w" onclick="openNeedsInfoModal(\''+id+'\')">❓ 追加確認する</button>'
@@ -2250,6 +2392,9 @@ async function pubArticle() {
       toast(scheduleOn ? '予約日時を更新しました ⏰' : '記事を更新しました ✅');
     } else {
       if (!scheduleOn) d.createdAt = window._ts();
+      if (_role === 'contributor' && window._auth && window._auth.currentUser) {
+        d.authorUid = window._auth.currentUser.uid; // 自分の記事だけ編集・削除できるようにするための所有者マーク
+      }
       await window._addDoc('articles', d);
       toast(scheduleOn ? '予約投稿を設定しました ⏰' : '記事を公開しました ✅');
     }
@@ -2268,6 +2413,9 @@ async function pubArticle() {
 function startEdit(id) {
   var a = articles.find(function(x){ return x.id===id; });
   if (!a) return;
+  var myUid = (window._auth && window._auth.currentUser) ? window._auth.currentUser.uid : null;
+  var canEdit = _role === 'admin' || _myPermissions.indexOf('articles.edit') >= 0 || (myUid && a.authorUid === myUid);
+  if (!canEdit) { toast('この記事を編集する権限がありません', 'error'); return; }
   editingId = id;
   setFormData(a);
   goView('edit');
@@ -2277,17 +2425,32 @@ function startEdit(id) {
 // 記事 削除（PIN付き）
 // ============================================================
 function askDel(id, title) {
-  openPin('記事を削除', '「'+title+'」を削除します。\nこの操作は取り消せません。', function(){
+  var a = articles.find(function(x){ return x.id===id; });
+  var myUid = (window._auth && window._auth.currentUser) ? window._auth.currentUser.uid : null;
+  var isOwn = a && myUid && a.authorUid === myUid;
+  var canDelete = _role === 'admin' || _myPermissions.indexOf('articles.delete') >= 0 || isOwn;
+  if (!canDelete) { toast('この記事を削除する権限がありません', 'error'); return; }
+
+  function doDelete(){
     window._deleteDoc('articles', id)
-      .then(function(){ toast('削除しました'); loadArticles().then(function(){ renderArticles(); renderDash(); }); })
+      .then(function(){ toast('削除しました'); loadArticles().then(function(){ renderArticles(); if (_role==='admin') renderDash(); }); })
       .catch(function(e){ toast('削除失敗: '+e.message,'error'); });
-  });
+  }
+
+  // 投稿者が自分の記事を削除する場合は管理者PIN不要（confirmのみ）
+  if (_role === 'contributor' && isOwn && _myPermissions.indexOf('articles.delete') < 0) {
+    if (confirm('「'+title+'」を削除します。この操作は取り消せません。よろしいですか？')) doDelete();
+    return;
+  }
+
+  openPin('記事を削除', '「'+title+'」を削除します。\nこの操作は取り消せません。', doDelete);
 }
 
 // ============================================================
 // お問い合わせ
 // ============================================================
-function renderContacts() {
+async function renderContacts() {
+  await loadContacts();
   var u = contacts.filter(function(c){ return !c.read; }).length;
   document.getElementById('c-count').innerHTML = '全'+contacts.length+'件' + (u?'<span class="nbadge" style="font-size:.76rem">未読'+u+'</span>':'');
   var wrap = document.getElementById('c-list');
@@ -2317,6 +2480,7 @@ async function openCM(id) {
     +'</table>'
     +'<div style="background:var(--bg);border-radius:6px;padding:.9rem;white-space:pre-wrap;font-size:.85rem;line-height:1.8">'+(c.message||'')+'</div>';
   document.getElementById('contact-modal').classList.add('on');
+  document.getElementById('cm-del').style.display = (_role==='admin' || _myPermissions.indexOf('contacts.delete')>=0) ? '' : 'none';
   if (!c.read) {
     try { await window._updateDoc('contacts', id, {read:true}); c.read=true; updateUnread(); } catch(e){}
   }
