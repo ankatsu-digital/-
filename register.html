@@ -14,7 +14,7 @@
       signOut, onAuthStateChanged, sendPasswordResetEmail
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import {
-      getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp
+      getFirestore, doc, setDoc, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -38,20 +38,8 @@
     window._signIn  = (email, pw) => signInWithEmailAndPassword(auth, email, pw);
     window._signOut = () => signOut(auth);
     window._resetPw = (email) => sendPasswordResetEmail(auth, email);
-
-    window._getAccount = async (uid) => {
-      var snap = await getDoc(doc(db, 'accounts', uid));
-      return snap.exists() ? snap.data() : null;
-    };
     window._createAccount = (uid, data) => setDoc(doc(db, 'accounts', uid), data);
-    window._updateAccount = (uid, data) => updateDoc(doc(db, 'accounts', uid), data);
     window._ts = () => serverTimestamp();
-
-    window._getAuthorProfile = async (uid) => {
-      var snap = await getDoc(doc(db, 'authors', uid));
-      return snap.exists() ? snap.data() : null;
-    };
-    window._saveAuthorProfile = (uid, data) => setDoc(doc(db, 'authors', uid), data, { merge: true });
 
     document.dispatchEvent(new Event('fb-ready'));
   </script>
@@ -203,57 +191,6 @@
       </div>
     </div>
 
-    <!-- ログイン後：マイページ -->
-    <div id="pg-mypage" style="display:none">
-
-      <div class="fcard">
-        <div class="fhead" style="display:flex;justify-content:space-between;align-items:center">
-          <div><h2 id="my-name">-</h2><p id="my-email">-</p></div>
-          <button class="link-btn" style="color:#fff;margin:0" onclick="doLogout()">ログアウト</button>
-        </div>
-        <div class="fbody">
-          <div style="margin-bottom:1rem">審査状況: <span class="badge" id="my-status-badge">-</span></div>
-          <div id="my-rejected-reason" style="display:none;font-size:.85rem;color:var(--muted);background:var(--bg);border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem"></div>
-        </div>
-      </div>
-
-      <!-- 追加確認：質問と回答フォーム -->
-      <div class="fcard" id="pg-questions" style="display:none">
-        <div class="fhead"><h2>❓ 編集部からの確認事項</h2><p>回答を送信すると、再度審査されます</p></div>
-        <div class="fbody" id="questions-list"></div>
-      </div>
-
-      <!-- 承認後：投稿導線 -->
-      <div class="fcard" id="pg-approved" style="display:none">
-        <div class="fhead"><h2>✅ 承認済み</h2><p>記事の投稿や、プロフィールの編集ができます</p></div>
-        <div class="fbody">
-          <a href="submit.html" class="submit-btn" style="display:flex;text-decoration:none;margin-bottom:1rem">📝 記事を投稿する</a>
-        </div>
-      </div>
-
-      <div class="fcard" id="pg-profile" style="display:none">
-        <div class="fhead"><h2>✍️ 執筆者プロフィール</h2><p>記事の「執筆者ページ」に表示される内容です</p></div>
-        <div class="fbody">
-          <div class="frow">
-            <label class="flabel">表示名 <span class="req">*</span></label>
-            <input id="p-name" type="text" class="finput" placeholder="記事の著者欄に表示される名前" />
-            <span class="fhint">記事投稿時の「著者」欄と同じ文字列にしてください</span>
-          </div>
-          <div class="frow">
-            <label class="flabel">紹介文</label>
-            <textarea id="p-bio" class="ftextarea" placeholder="自己紹介文を入力してください"></textarea>
-          </div>
-          <div class="frow">
-            <label class="flabel">顔写真URL</label>
-            <input id="p-photo" type="url" class="finput" placeholder="https://i.imgur.com/xxxxx.jpg" />
-            <span class="fhint">💡 <a href="https://imgur.com/upload" target="_blank">Imgur</a> にアップして「Direct Link」を貼ってください</span>
-          </div>
-          <button class="submit-btn" id="p-save-btn" onclick="saveProfile()">💾 保存する</button>
-        </div>
-      </div>
-
-    </div>
-
   </main>
 
   <footer>
@@ -356,102 +293,16 @@
   function doLogout(){ window._signOut(); }
 
   // ============================================================
-  // マイページ描画
-  // ============================================================
-  var STATUS_LABEL = { pending:['審査中','badge-pending'], needs_info:['追加確認あり','badge-needs'], approved:['承認済み','badge-approved'], rejected:['見送り','badge-rejected'] };
-
-  async function renderMyPage(uid, email){
-    var acc = await window._getAccount(uid);
-    if(!acc){ alert('アカウント情報が見つかりませんでした'); return; }
-
-    document.getElementById('my-name').textContent = acc.name || '（名前未設定）';
-    document.getElementById('my-email').textContent = email;
-    var st = STATUS_LABEL[acc.status] || ['-',''];
-    var badge = document.getElementById('my-status-badge');
-    badge.textContent = st[0];
-    badge.className = 'badge ' + st[1];
-
-    var rejBox = document.getElementById('my-rejected-reason');
-    if(acc.status==='rejected' && acc.rejectReason){
-      rejBox.style.display='block'; rejBox.textContent = '見送り理由: ' + acc.rejectReason;
-    } else rejBox.style.display='none';
-
-    // 未回答の追加確認質問を表示
-    var pending = (acc.questions||[]).filter(function(q){ return !q.answer; });
-    var qWrap = document.getElementById('pg-questions');
-    if(acc.status==='needs_info' && pending.length){
-      qWrap.style.display='block';
-      document.getElementById('questions-list').innerHTML = pending.map(function(q){
-        return '<div class="qa-item">'
-          + '<div class="qa-q">Q. ' + q.text + '</div>'
-          + '<textarea class="ftextarea" id="qa-answer-' + q.id + '" placeholder="回答を入力してください"></textarea>'
-          + '</div>';
-      }).join('') + '<button class="submit-btn" onclick="submitAnswers(\'' + uid + '\')">回答を送信する →</button>';
-    } else {
-      qWrap.style.display='none';
-    }
-
-    // 承認済みなら投稿導線＋プロフィール編集を表示
-    if(acc.status==='approved'){
-      document.getElementById('pg-approved').style.display='block';
-      document.getElementById('pg-profile').style.display='block';
-      var prof = await window._getAuthorProfile(uid);
-      document.getElementById('p-name').value  = (prof && prof.name)  || acc.name || '';
-      document.getElementById('p-bio').value   = (prof && prof.bio)   || '';
-      document.getElementById('p-photo').value = (prof && prof.photo) || '';
-    } else {
-      document.getElementById('pg-approved').style.display='none';
-      document.getElementById('pg-profile').style.display='none';
-    }
-  }
-
-  async function submitAnswers(uid){
-    var acc = await window._getAccount(uid);
-    var updated = (acc.questions||[]).map(function(q){
-      if(q.answer) return q;
-      var ta = document.getElementById('qa-answer-'+q.id);
-      var val = ta ? ta.value.trim() : '';
-      if(!val) return q;
-      return Object.assign({}, q, { answer: val, answeredAt: new Date().toISOString() });
-    });
-    var stillUnanswered = updated.some(function(q){ return !q.answer; });
-    if(stillUnanswered){ alert('すべての質問に回答してください'); return; }
-    try{
-      await window._updateAccount(uid, { questions: updated, status: 'pending', updatedAt: window._ts() });
-      alert('回答を送信しました。編集部で再度確認します。');
-      renderMyPage(uid, document.getElementById('my-email').textContent);
-    }catch(e){ alert('送信に失敗しました: ' + e.message); }
-  }
-
-  async function saveProfile(){
-    var user = window._auth && window._auth.currentUser;
-    if(!user) return;
-    var btn = document.getElementById('p-save-btn');
-    btn.disabled=true; btn.innerHTML='<span class="spin"></span> 保存中…';
-    try{
-      await window._saveAuthorProfile(user.uid, {
-        ownerUid: user.uid,
-        name:  document.getElementById('p-name').value.trim(),
-        bio:   document.getElementById('p-bio').value.trim(),
-        photo: document.getElementById('p-photo').value.trim()
-      });
-      alert('保存しました ✅');
-    }catch(e){ alert('保存に失敗しました: ' + e.message); }
-    finally{ btn.disabled=false; btn.textContent='💾 保存する'; }
-  }
-
-  // ============================================================
   // 認証状態監視
   // ============================================================
   function initAuth(){
     window._onAuth(function(user){
       if(user){
-        document.getElementById('pg-guest').style.display='none';
-        document.getElementById('pg-mypage').style.display='block';
-        renderMyPage(user.uid, user.email);
+        // ログイン済みなら、以降の操作（審査状況の確認・回答・投稿・プロフィール編集）は
+        // すべて admin.html 側で行う（そちらがロールに応じたマイページになっている）
+        location.href = 'admin.html';
       } else {
         document.getElementById('pg-guest').style.display='block';
-        document.getElementById('pg-mypage').style.display='none';
       }
     });
   }
