@@ -626,13 +626,7 @@
                   <input id="an-pw" type="text" class="finput" placeholder="8文字以上" style="flex:1" />
                   <button class="btn btn-o btn-sm" type="button" onclick="genAccountPassword()">🎲 自動生成</button>
                 </div>
-                <span class="fhint">本人にはこのパスワードは伝えず、通知メールのリンクからパスワード設定してもらう運用でも構いません（下のチェックで切替）</span>
-              </div>
-              <div class="frow full">
-                <div class="crow">
-                  <input id="an-sendreset" type="checkbox" checked />
-                  <label for="an-sendreset">📧 作成後にパスワード再設定メール（Firebase公式）も送る</label>
-                </div>
+                <span class="fhint">このパスワードをそのまま通知メールに記載して本人に送ります。パスワード変更が必要な場合は、メール内のリンクから本人が変更できます（Firebase公式の再設定メールは自動送信しません）</span>
               </div>
             </div>
             <div class="factions">
@@ -2247,7 +2241,6 @@ function goAccountNew() {
   document.getElementById('an-email').value = '';
   document.getElementById('an-org').value = '';
   document.getElementById('an-pw').value = '';
-  document.getElementById('an-sendreset').checked = true;
 }
 
 function closeAccountNew() {
@@ -2268,7 +2261,6 @@ async function createContributorAccount() {
   var email = document.getElementById('an-email').value.trim();
   var org   = document.getElementById('an-org').value.trim();
   var pw    = document.getElementById('an-pw').value;
-  var sendReset = document.getElementById('an-sendreset').checked;
 
   if (!name)  { toast('お名前を入力してください', 'warn'); return; }
   if (!email) { toast('メールアドレスを入力してください', 'warn'); return; }
@@ -2288,12 +2280,8 @@ async function createContributorAccount() {
     });
 
     sendResultMail('account_created_by_admin', {
-      to: email, name: name, register_url: registerUrl(), admin_url: location.origin + location.pathname
+      to: email, name: name, password: pw, register_url: registerUrl()
     });
-
-    if (sendReset) {
-      try { await window._resetPw(email); } catch (e) { console.error('パスワード再設定メール送信エラー:', e); }
-    }
 
     toast('投稿者アカウントを作成しました ✅');
     closeAccountNew();
