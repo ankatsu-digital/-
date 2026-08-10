@@ -8,7 +8,7 @@
   <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import {
       getFirestore, collection, getDocs, addDoc, updateDoc,
@@ -35,6 +35,7 @@
     window._signIn  = (email, pw) => signInWithEmailAndPassword(auth, email, pw);
     window._signOut = () => signOut(auth);
     window._onAuth  = (cb) => onAuthStateChanged(auth, cb);
+    window._resetPw = (email) => sendPasswordResetEmail(auth, email);
 
     window._getAll  = (col) => getDocs(collection(db, col));
     window._addDoc  = (col, data) => addDoc(collection(db, col), data);
@@ -43,6 +44,23 @@
     window._setDoc  = (col, id, data) => setDoc(doc(db, col, id), data);
     window._getDoc  = (col, id) => getDoc(doc(db, col, id));
     window._ts      = () => serverTimestamp();
+
+    // 管理者が投稿者アカウントを直接作成するための機能。
+    // Firebase Authは「アカウントを新規作成する＝そのアカウントとしてログインする」仕様なので、
+    // そのまま作ると管理者自身がログアウトされてしまう。
+    // これを避けるため、別名のセカンダリFirebaseアプリを使って裏側でアカウントだけ作る。
+    window._adminCreateContributor = async (email, password) => {
+      const secondaryApp  = initializeApp(firebaseConfig, 'AdminCreateContributor_' + Date.now());
+      const secondaryAuth = getAuth(secondaryApp);
+      try {
+        const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+        const uid = cred.user.uid;
+        await signOut(secondaryAuth); // セカンダリ側だけサインアウト（管理者の主セッションには影響しない）
+        return uid;
+      } finally {
+        try { await secondaryApp.delete && secondaryApp.delete(); } catch (e) { /* 対応していないSDKバージョンでも無視 */ }
+      }
+    };
 
     window._fbReady = true;
     document.dispatchEvent(new Event('fb-ready'));
@@ -576,9 +594,52 @@
             <div style="display:flex;gap:.65rem;align-items:center;flex-wrap:wrap">
               <span id="acc-count" style="font-size:.8rem;color:var(--muted)"></span>
               <button class="btn btn-o btn-sm" onclick="openQuestionBank()">❓ 質問バンク管理</button>
+              <button class="btn btn-g btn-sm" onclick="goAccountNew()">＋ 投稿者アカウントを新規作成</button>
             </div>
           </div>
           <div id="acc-list"></div>
+        </div>
+
+        <!-- 新規作成（管理者が直接作成） -->
+        <div class="fcard" id="account-new-panel" style="display:none">
+          <div class="fhead">
+            <button class="btn btn-o btn-sm" onclick="closeAccountNew()">← 一覧へ</button>
+            <span style="font-weight:700;font-size:.95rem">投稿者アカウントを新規作成</span>
+          </div>
+          <div class="fbody">
+            <div class="fgrid">
+              <div class="frow full">
+                <label class="flabel">お名前 <span class="req">*</span></label>
+                <input id="an-name" type="text" class="finput" placeholder="山田 太郎" />
+              </div>
+              <div class="frow">
+                <label class="flabel">メールアドレス <span class="req">*</span></label>
+                <input id="an-email" type="email" class="finput" placeholder="example@email.com" />
+              </div>
+              <div class="frow">
+                <label class="flabel">所属・活動内容</label>
+                <input id="an-org" type="text" class="finput" placeholder="〇〇商店街振興会 など" />
+              </div>
+              <div class="frow full">
+                <label class="flabel">初期パスワード <span class="req">*</span></label>
+                <div style="display:flex;gap:.5rem">
+                  <input id="an-pw" type="text" class="finput" placeholder="8文字以上" style="flex:1" />
+                  <button class="btn btn-o btn-sm" type="button" onclick="genAccountPassword()">🎲 自動生成</button>
+                </div>
+                <span class="fhint">本人にはこのパスワードは伝えず、通知メールのリンクからパスワード設定してもらう運用でも構いません（下のチェックで切替）</span>
+              </div>
+              <div class="frow full">
+                <div class="crow">
+                  <input id="an-sendreset" type="checkbox" checked />
+                  <label for="an-sendreset">📧 作成後にパスワード再設定メール（Firebase公式）も送る</label>
+                </div>
+              </div>
+            </div>
+            <div class="factions">
+              <button class="btn btn-o" onclick="closeAccountNew()">キャンセル</button>
+              <button class="btn btn-g" id="an-save-btn" onclick="createContributorAccount()">✅ 作成してメール送信</button>
+            </div>
+          </div>
         </div>
 
         <!-- 申請詳細 -->
@@ -1094,6 +1155,7 @@ async function goView(key) {
   if (key==='submissions') renderSubmissions();
   if (key==='accounts')  {
     document.getElementById('account-detail-panel').style.display = 'none';
+    document.getElementById('account-new-panel').style.display = 'none';
     document.getElementById('accounts-list-panel').style.display = 'block';
     curAccountId = null;
     renderAccountsList();
@@ -2174,6 +2236,74 @@ function closeAccountDetail() {
   document.getElementById('accounts-list-panel').style.display = 'block';
   curAccountId = null;
   renderAccountsList();
+}
+
+// ---- 管理者による投稿者アカウントの直接作成 ----
+function goAccountNew() {
+  document.getElementById('accounts-list-panel').style.display = 'none';
+  document.getElementById('account-detail-panel').style.display = 'none';
+  document.getElementById('account-new-panel').style.display = 'block';
+  document.getElementById('an-name').value = '';
+  document.getElementById('an-email').value = '';
+  document.getElementById('an-org').value = '';
+  document.getElementById('an-pw').value = '';
+  document.getElementById('an-sendreset').checked = true;
+}
+
+function closeAccountNew() {
+  document.getElementById('account-new-panel').style.display = 'none';
+  document.getElementById('accounts-list-panel').style.display = 'block';
+  renderAccountsList();
+}
+
+function genAccountPassword() {
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  var pw = '';
+  for (var i = 0; i < 12; i++) pw += chars[Math.floor(Math.random() * chars.length)];
+  document.getElementById('an-pw').value = pw;
+}
+
+async function createContributorAccount() {
+  var name  = document.getElementById('an-name').value.trim();
+  var email = document.getElementById('an-email').value.trim();
+  var org   = document.getElementById('an-org').value.trim();
+  var pw    = document.getElementById('an-pw').value;
+  var sendReset = document.getElementById('an-sendreset').checked;
+
+  if (!name)  { toast('お名前を入力してください', 'warn'); return; }
+  if (!email) { toast('メールアドレスを入力してください', 'warn'); return; }
+  if (!pw || pw.length < 8) { toast('パスワードは8文字以上にしてください（「自動生成」も使えます）', 'warn'); return; }
+
+  var btn = document.getElementById('an-save-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 作成中…';
+  try {
+    var uid = await window._adminCreateContributor(email, pw);
+
+    await window._setDoc('accounts', uid, {
+      name: name, email: email, org: org,
+      reason: '（管理者が直接作成したアカウントです）',
+      status: 'approved', permissions: [], questions: [],
+      createdByAdmin: true,
+      createdAt: window._ts(), approvedAt: window._ts(), updatedAt: window._ts()
+    });
+
+    sendResultMail('account_created_by_admin', {
+      to: email, name: name, register_url: registerUrl(), admin_url: location.origin + location.pathname
+    });
+
+    if (sendReset) {
+      try { await window._resetPw(email); } catch (e) { console.error('パスワード再設定メール送信エラー:', e); }
+    }
+
+    toast('投稿者アカウントを作成しました ✅');
+    closeAccountNew();
+  } catch (e) {
+    console.error(e);
+    var msg = e && e.code === 'auth/email-already-in-use' ? 'このメールアドレスは既に使われています' : ('作成に失敗しました: ' + e.message);
+    toast(msg, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '✅ 作成してメール送信';
+  }
 }
 
 async function approveAccount(id) {
