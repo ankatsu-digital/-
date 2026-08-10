@@ -1767,7 +1767,7 @@
   }
 
   /* ---- お問い合わせフォーム：GAS自動返信 ---- */
-  var CONTACT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxOd6W-tYb-p9hwVtfPK9JVhGT-gxvF3SiS-l-N6px5FHjOsnhSrP5rA36TApmHLCNCWA/exec'; /* ← submit.htmlと同じGASのURL */
+  var CONTACT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyK9Q9uV7HZieT8CdjBc08Y6x7kx_d_e1DGPSrLk3ISAiZB0Mqm7g1OVGC1fZgEEi6kXQ/exec'; /* ← submit.htmlと同じGASのURL */
   var CONTACT_ADMIN_NOTIFY_EMAIL = 'oruto1157oruto2@gmail.com,kvsrbe1236@yahoo.ne.jp,ankatsu.sumoto@gmail.com'; /* ← submit.htmlのADMIN_NOTIFY_EMAILと同じでOK */
   function sendContactGasMail(payload){
     if(!CONTACT_GAS_URL || CONTACT_GAS_URL.indexOf('XXXX')>=0) return;
