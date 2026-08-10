@@ -8,7 +8,7 @@
   <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail }
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import {
       getFirestore, collection, getDocs, addDoc, updateDoc,
@@ -36,6 +36,17 @@
     window._signOut = () => signOut(auth);
     window._onAuth  = (cb) => onAuthStateChanged(auth, cb);
     window._resetPw = (email) => sendPasswordResetEmail(auth, email);
+
+    // ログイン中の本人が自分のパスワードを直接変更する（メール不要）
+    // Firebaseの仕様上、パスワード変更には直近の再認証が必要なため、
+    // 現在のパスワードで再認証してから変更する。
+    window._changeOwnPassword = async (currentPassword, newPassword) => {
+      const user = auth.currentUser;
+      if (!user) throw new Error('ログインしていません');
+      const cred = EmailAuthProvider.credential(user.email, currentPassword);
+      await reauthenticateWithCredential(user, cred);
+      await updatePassword(user, newPassword);
+    };
 
     window._getAll  = (col) => getDocs(collection(db, col));
     window._addDoc  = (col, data) => addDoc(collection(db, col), data);
@@ -1067,7 +1078,7 @@
 var PIN        = '2506';          // ← 削除PINコード
 var DRAFT_KEY  = 'ankatsu_drafts'; // localStorage キー
 var SUBMIT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxOd6W-tYb-p9hwVtfPK9JVhGT-gxvF3SiS-l-N6px5FHjOsnhSrP5rA36TApmHLCNCWA/exec'; // submit.htmlと同じGASのURLに書き換え
-var ADMIN_API_SECRET = 'aK9x!mQ2vR7pL4wZ8nB1sT6yU3dF0hJ5'; // ← GASのスクリプトプロパティ ADMIN_API_SECRET と必ず同じ値にする
+var ADMIN_API_SECRET = 'CHANGE_THIS_TO_A_LONG_RANDOM_STRING'; // ← GASのスクリプトプロパティ ADMIN_API_SECRET と必ず同じ値にする
 
 function sendResultMail(type, payload) {
   if (!SUBMIT_GAS_URL || SUBMIT_GAS_URL.indexOf('XXXX') >= 0) return;
@@ -2160,7 +2171,41 @@ function renderContributorDashboard() {
   }
 
   body += '</div></div>';
+
+  // パスワード変更（審査状況に関わらず、ログインさえできていれば誰でも使える）
+  body += '<div class="panel"><div style="padding:1.5rem 2rem">'
+    + '<h3 style="font-size:.95rem;font-weight:700;margin-bottom:.75rem">🔑 パスワードを変更</h3>'
+    + '<div class="fgrid">'
+    + '<div class="frow"><label class="flabel">現在のパスワード</label><input id="cp-current" type="password" class="finput" placeholder="••••••••" /></div>'
+    + '<div class="frow"><label class="flabel">新しいパスワード（8文字以上）</label><input id="cp-new" type="password" class="finput" placeholder="••••••••" /></div>'
+    + '</div>'
+    + '<button class="btn btn-g btn-sm" id="cp-btn" onclick="changeOwnPassword()">変更する</button>'
+    + '</div></div>';
+
   document.getElementById('dash-contributor-content').innerHTML = body;
+}
+
+async function changeOwnPassword() {
+  var cur = document.getElementById('cp-current').value;
+  var next = document.getElementById('cp-new').value;
+  if (!cur) { toast('現在のパスワードを入力してください', 'warn'); return; }
+  if (!next || next.length < 8) { toast('新しいパスワードは8文字以上にしてください', 'warn'); return; }
+
+  var btn = document.getElementById('cp-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 変更中…';
+  try {
+    await window._changeOwnPassword(cur, next);
+    toast('パスワードを変更しました ✅');
+    document.getElementById('cp-current').value = '';
+    document.getElementById('cp-new').value = '';
+  } catch (e) {
+    var msg = (e && e.code === 'auth/wrong-password') ? '現在のパスワードが正しくありません'
+            : (e && e.code === 'auth/too-many-requests') ? '試行回数が多すぎます。しばらくしてから再度お試しください'
+            : ('変更に失敗しました: ' + e.message);
+    toast(msg, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '変更する';
+  }
 }
 
 async function submitMyAnswers() {
