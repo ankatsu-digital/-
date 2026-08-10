@@ -606,7 +606,7 @@
             <button class="btn btn-o btn-sm" onclick="closeAccountNew()">← 一覧へ</button>
             <span style="font-weight:700;font-size:.95rem">投稿者アカウントを新規作成</span>
           </div>
-          <div class="fbody">
+          <div class="fbody" id="account-new-form-body">
             <div class="fgrid">
               <div class="frow full">
                 <label class="flabel">お名前 <span class="req">*</span></label>
@@ -626,12 +626,33 @@
                   <input id="an-pw" type="text" class="finput" placeholder="8文字以上" style="flex:1" />
                   <button class="btn btn-o btn-sm" type="button" onclick="genAccountPassword()">🎲 自動生成</button>
                 </div>
-                <span class="fhint">このパスワードをそのまま通知メールに記載して本人に送ります。パスワード変更が必要な場合は、メール内のリンクから本人が変更できます（Firebase公式の再設定メールは自動送信しません）</span>
+                <span class="fhint">メールが迷惑メールに入って届かないこともあるので、作成後にこの画面でも表示・コピーできます。電話やLINEなど別の手段で直接伝えるのが確実です</span>
               </div>
             </div>
             <div class="factions">
               <button class="btn btn-o" onclick="closeAccountNew()">キャンセル</button>
               <button class="btn btn-g" id="an-save-btn" onclick="createContributorAccount()">✅ 作成してメール送信</button>
+            </div>
+          </div>
+
+          <!-- 作成完了：メールに頼らずここでも確認・コピーできる -->
+          <div class="fbody" id="account-new-done-body" style="display:none">
+            <div style="background:var(--gpale);border:1px solid var(--green2);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.25rem;color:var(--green);font-weight:700">
+              ✅ アカウントを作成しました（通知メールも送信済みです）
+            </div>
+            <p style="font-size:.82rem;color:var(--muted);margin-bottom:1rem">メールが迷惑メールフォルダに入って届かない場合に備えて、ログイン情報をここに表示しています。電話・LINEなど確実な手段で直接伝えることをおすすめします。</p>
+            <div class="frow"><label class="flabel">お名前</label><input type="text" class="finput" id="done-name" readonly></div>
+            <div class="frow">
+              <label class="flabel">ログインID（メールアドレス）</label>
+              <div style="display:flex;gap:.5rem"><input type="text" class="finput" id="done-email" readonly style="flex:1"><button class="btn btn-o btn-sm" onclick="copyDoneField('done-email')">📋 コピー</button></div>
+            </div>
+            <div class="frow">
+              <label class="flabel">初期パスワード</label>
+              <div style="display:flex;gap:.5rem"><input type="text" class="finput" id="done-pw" readonly style="flex:1"><button class="btn btn-o btn-sm" onclick="copyDoneField('done-pw')">📋 コピー</button></div>
+            </div>
+            <div class="frow"><label class="flabel">ログインページ</label><input type="text" class="finput" id="done-url" readonly></div>
+            <div class="factions">
+              <button class="btn btn-g" onclick="closeAccountNew()">一覧へ戻る</button>
             </div>
           </div>
         </div>
@@ -1017,6 +1038,25 @@
   </div>
 </div>
 
+<!-- パスワード直接変更モーダル（メールを介さない） -->
+<div class="mback" id="pwchange-modal">
+  <div class="mbox" style="max-width:460px">
+    <h3>🔑 パスワードを直接変更</h3>
+    <p style="margin-bottom:1rem">この投稿者（<span id="pwc-email" style="font-weight:700"></span>）のパスワードを、メールを介さず直接書き換えます。変更後、本人には電話・LINEなど別の手段で直接伝えてください。</p>
+    <div class="frow" style="margin-bottom:.4rem">
+      <label class="flabel">新しいパスワード</label>
+      <div style="display:flex;gap:.5rem">
+        <input id="pwc-pw" type="text" class="finput" placeholder="8文字以上" style="flex:1" />
+        <button class="btn btn-o btn-sm" type="button" onclick="genPwChangePassword()">🎲 自動生成</button>
+      </div>
+    </div>
+    <div class="macts">
+      <button class="btn btn-o" onclick="closePwChangeModal()">キャンセル</button>
+      <button class="btn btn-w" id="pwc-send-btn" onclick="submitPwChange()">🔑 変更する</button>
+    </div>
+  </div>
+</div>
+
 <!-- トースト -->
 <div id="toasts" style="position:fixed;bottom:1.25rem;right:1.25rem;display:flex;flex-direction:column;gap:.45rem;z-index:9999"></div>
 
@@ -1027,6 +1067,7 @@
 var PIN        = '2506';          // ← 削除PINコード
 var DRAFT_KEY  = 'ankatsu_drafts'; // localStorage キー
 var SUBMIT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxOd6W-tYb-p9hwVtfPK9JVhGT-gxvF3SiS-l-N6px5FHjOsnhSrP5rA36TApmHLCNCWA/exec'; // submit.htmlと同じGASのURLに書き換え
+var ADMIN_API_SECRET = 'CHANGE_THIS_TO_A_LONG_RANDOM_STRING'; // ← GASのスクリプトプロパティ ADMIN_API_SECRET と必ず同じ値にする
 
 function sendResultMail(type, payload) {
   if (!SUBMIT_GAS_URL || SUBMIT_GAS_URL.indexOf('XXXX') >= 0) return;
@@ -2219,6 +2260,7 @@ function openAccountDetail(id) {
     + '<button class="btn btn-g btn-sm" style="margin-top:.4rem" onclick="savePermissions(\''+id+'\')">💾 権限を保存</button>'
     + '</div>'
     + '<div class="factions" style="margin-top:1.5rem">'
+    + '<button class="btn btn-o" onclick="adminChangePassword(\''+id+'\',\''+(a.email||'').replace(/'/g,"\\'")+'\')">🔑 パスワードを直接変更</button>'
     + '<button class="btn btn-r" onclick="rejectAccount(\''+id+'\')">❌ 却下</button>'
     + '<button class="btn btn-w" onclick="openNeedsInfoModal(\''+id+'\')">❓ 追加確認する</button>'
     + '<button class="btn btn-g" onclick="approveAccount(\''+id+'\')">✅ 承認する</button>'
@@ -2237,6 +2279,8 @@ function goAccountNew() {
   document.getElementById('accounts-list-panel').style.display = 'none';
   document.getElementById('account-detail-panel').style.display = 'none';
   document.getElementById('account-new-panel').style.display = 'block';
+  document.getElementById('account-new-form-body').style.display = 'block';
+  document.getElementById('account-new-done-body').style.display = 'none';
   document.getElementById('an-name').value = '';
   document.getElementById('an-email').value = '';
   document.getElementById('an-org').value = '';
@@ -2254,6 +2298,69 @@ function genAccountPassword() {
   var pw = '';
   for (var i = 0; i < 12; i++) pw += chars[Math.floor(Math.random() * chars.length)];
   document.getElementById('an-pw').value = pw;
+}
+
+function copyDoneField(id) {
+  var el = document.getElementById(id);
+  el.select(); el.setSelectionRange(0, 99999);
+  try {
+    navigator.clipboard.writeText(el.value).then(function(){ toast('コピーしました 📋'); });
+  } catch (e) {
+    document.execCommand('copy'); toast('コピーしました 📋');
+  }
+}
+
+// ---- パスワード直接変更（メールを介さない・GAS経由でIdentity Toolkit APIを叩く） ----
+var _pwChangeTargetUid = null;
+
+function adminChangePassword(uid, email) {
+  _pwChangeTargetUid = uid;
+  document.getElementById('pwc-email').textContent = email || uid;
+  document.getElementById('pwc-pw').value = '';
+  document.getElementById('pwchange-modal').classList.add('on');
+}
+function closePwChangeModal() {
+  document.getElementById('pwchange-modal').classList.remove('on');
+  _pwChangeTargetUid = null;
+}
+function genPwChangePassword() {
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  var pw = '';
+  for (var i = 0; i < 12; i++) pw += chars[Math.floor(Math.random() * chars.length)];
+  document.getElementById('pwc-pw').value = pw;
+}
+
+async function submitPwChange() {
+  var uid = _pwChangeTargetUid;
+  var pw  = document.getElementById('pwc-pw').value;
+  if (!uid) return;
+  if (!pw || pw.length < 8) { toast('パスワードは8文字以上にしてください', 'warn'); return; }
+  if (!ADMIN_API_SECRET || ADMIN_API_SECRET.indexOf('CHANGE_THIS') >= 0) {
+    toast('ADMIN_API_SECRETが未設定です。admin.html側の定数を書き換えてください', 'error');
+    return;
+  }
+
+  var btn = document.getElementById('pwc-send-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 変更中…';
+  try {
+    var res = await fetch(SUBMIT_GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ type: 'admin_set_password', secret: ADMIN_API_SECRET, uid: uid, newPassword: pw })
+    });
+    var json;
+    try { json = await res.json(); } catch (e) { throw new Error('サーバーからの応答を読み取れませんでした（GASのデプロイ設定をご確認ください）'); }
+    if (!json || !json.ok) throw new Error((json && json.error) || 'パスワード変更に失敗しました');
+
+    closePwChangeModal();
+    alert('パスワードを変更しました。\n\n新しいパスワード:\n' + pw + '\n\nこの内容を本人に電話・LINEなど直接伝わる方法で伝えてください（メールは送信していません）。');
+    toast('パスワードを変更しました ✅');
+  } catch (e) {
+    console.error(e);
+    toast('パスワード変更に失敗しました: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '🔑 変更する';
+  }
 }
 
 async function createContributorAccount() {
@@ -2283,8 +2390,15 @@ async function createContributorAccount() {
       to: email, name: name, password: pw, register_url: registerUrl()
     });
 
+    // メールが届かない場合に備えて、この画面でもログイン情報を確認・コピーできるようにする
+    document.getElementById('done-name').value  = name;
+    document.getElementById('done-email').value = email;
+    document.getElementById('done-pw').value    = pw;
+    document.getElementById('done-url').value   = registerUrl();
+    document.getElementById('account-new-form-body').style.display = 'none';
+    document.getElementById('account-new-done-body').style.display = 'block';
+
     toast('投稿者アカウントを作成しました ✅');
-    closeAccountNew();
   } catch (e) {
     console.error(e);
     var msg = e && e.code === 'auth/email-already-in-use' ? 'このメールアドレスは既に使われています' : ('作成に失敗しました: ' + e.message);
