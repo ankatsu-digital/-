@@ -1224,8 +1224,8 @@
 // ============================================================
 var PIN        = '2506';          // ← 削除PINコード
 var DRAFT_KEY  = 'ankatsu_drafts'; // localStorage キー
-var SUBMIT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxOd6W-tYb-p9hwVtfPK9JVhGT-gxvF3SiS-l-N6px5FHjOsnhSrP5rA36TApmHLCNCWA/exec'; // submit.htmlと同じGASのURLに書き換え
-var ADMIN_API_SECRET = 'CHANGE_THIS_TO_A_LONG_RANDOM_STRING'; // ← GASのスクリプトプロパティ ADMIN_API_SECRET と必ず同じ値にする
+var SUBMIT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyK9Q9uV7HZieT8CdjBc08Y6x7kx_d_e1DGPSrLk3ISAiZB0Mqm7g1OVGC1fZgEEi6kXQ/exec'; // submit.htmlと同じGASのURLに書き換え
+var ADMIN_API_SECRET = 'aK9x!mQ2vR7pL4wZ8nB1sT6yU3dF0hJ5'; // ← GASのスクリプトプロパティ ADMIN_API_SECRET と必ず同じ値にする
 
 function sendResultMail(type, payload) {
   if (!SUBMIT_GAS_URL || SUBMIT_GAS_URL.indexOf('XXXX') >= 0) return;
