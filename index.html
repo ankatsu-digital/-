@@ -338,7 +338,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import {
       getFirestore, collection, getDocs, getDoc, doc,
-      query, orderBy, where, limit, addDoc, serverTimestamp
+      query, orderBy, where, limit, addDoc, serverTimestamp, updateDoc, increment
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import {
       getMessaging, getToken, onMessage, isSupported
@@ -357,7 +357,7 @@
     const app = initializeApp(firebaseConfig);
     const db  = getFirestore(app);
     window._db          = db;
-    window._firestoreOp = { collection, getDocs, getDoc, doc, query, orderBy, where, limit, addDoc, serverTimestamp };
+    window._firestoreOp = { collection, getDocs, getDoc, doc, query, orderBy, where, limit, addDoc, serverTimestamp, updateDoc, increment };
 
     isSupported().then(function(supported){
       if (supported) {
@@ -714,6 +714,37 @@
     .maintenance-note{font-size:.75rem;color:var(--text-light);letter-spacing:.05em}
 
     /* メンテナンス後お知らせポップアップ */
+    /* 閲覧数表示 */
+    .article-view-count{font-size:.78rem;color:var(--text-light)}
+
+    /* 非公開フィードバック */
+    .feedback-box{max-width:760px;margin:2rem auto 0;padding:1.5rem;background:var(--bg-sub);border:1px solid var(--border);border-radius:8px;text-align:center}
+    .feedback-q{font-size:.92rem;font-weight:700;margin-bottom:.9rem}
+    .feedback-buttons{display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap}
+    .fb-btn{padding:.55rem 1.1rem;border-radius:20px;border:1.5px solid var(--border);background:var(--bg-card);font-size:.85rem;font-weight:600;cursor:pointer;transition:border-color .2s,background .2s}
+    .fb-btn:hover{border-color:var(--accent)}
+    .fb-btn.selected{border-color:var(--accent);background:var(--accent-pale);color:var(--accent)}
+    .feedback-comment-wrap{margin-top:1rem;text-align:left}
+    .feedback-comment-wrap textarea{width:100%;min-height:80px;padding:.7rem .9rem;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;font-size:.88rem;resize:vertical;outline:none}
+    .feedback-comment-wrap textarea:focus{border-color:var(--accent)}
+    .feedback-submit-btn{margin-top:.6rem;padding:.5rem 1.3rem;background:var(--accent);color:#fff;border-radius:20px;font-size:.85rem;font-weight:700}
+    .feedback-submit-btn:hover{background:var(--accent-light)}
+    .feedback-thanks{font-size:.88rem;color:var(--accent);font-weight:700}
+
+    /* 右下フローティングメニュー */
+    .floating-menu-wrap{position:fixed;right:1.1rem;bottom:1.1rem;z-index:8000;display:flex;flex-direction:column;align-items:flex-end;gap:.6rem}
+    .floating-menu-list{display:flex;flex-direction:column;gap:.55rem;margin-bottom:.2rem;opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .2s,transform .2s}
+    .floating-menu-wrap.open .floating-menu-list{opacity:1;pointer-events:auto;transform:translateY(0)}
+    .floating-menu-item{display:flex;align-items:center;gap:.5rem;background:var(--bg-card);border:1px solid var(--border);border-radius:24px;padding:.55rem 1.1rem .55rem .8rem;box-shadow:0 4px 14px rgba(0,0,0,.14);font-size:.82rem;font-weight:600;color:var(--text-main);white-space:nowrap;text-decoration:none;transition:transform .15s}
+    .floating-menu-item:hover{transform:translateX(-3px)}
+    .fmi-icon{font-size:1.05rem}
+    .floating-menu-toggle{width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:1.4rem;box-shadow:0 6px 18px rgba(0,0,0,.22);cursor:pointer;transition:background .2s,transform .2s}
+    .floating-menu-toggle:hover{background:var(--accent-light)}
+    .floating-menu-wrap.open .floating-menu-toggle{transform:rotate(45deg)}
+    @media(max-width:640px){
+      .floating-menu-wrap{right:.75rem;bottom:.75rem}
+    }
+
     #popup-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:15000;align-items:center;justify-content:center;padding:1.25rem}
     .popup-modal-card{background:var(--bg-card);border-radius:14px;max-width:520px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.3);overflow:hidden;animation:jmaSlideIn .3s ease-out}
     .popup-modal-header{background:var(--accent);color:#fff;padding:1rem 1.25rem;display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:1rem}
@@ -1170,12 +1201,22 @@
       var snap=await ops.getDoc(ops.doc(db,'settings','popup'));
       var data=snap.exists()?snap.data():{};
       if(!data.enabled || !data.popupId || !data.html) return;
+
+      var now=new Date();
+      if(data.startAt){ var s=new Date(data.startAt); if(!isNaN(s) && now<s) return; }
+      if(data.endAt){ var en=new Date(data.endAt); if(!isNaN(en) && now>en) return; }
+      if(data.showOnAllPages===false && currentView!=='top') return;
+
       var dismissed=getDismissedPopups();
       if(dismissed.indexOf(data.popupId)>=0) return;
-      document.getElementById('popup-modal-body').innerHTML = data.html;
-      document.getElementById('popup-modal').dataset.popupId = data.popupId;
-      document.getElementById('popup-dont-show').checked = false;
-      document.getElementById('popup-modal').style.display='flex';
+
+      var delayMs = Math.max(0, (data.delaySeconds||0)) * 1000;
+      setTimeout(function(){
+        document.getElementById('popup-modal-body').innerHTML = data.html;
+        document.getElementById('popup-modal').dataset.popupId = data.popupId;
+        document.getElementById('popup-dont-show').checked = false;
+        document.getElementById('popup-modal').style.display='flex';
+      }, delayMs);
     }catch(e){ console.error('checkPopup:', e); }
   }
 
@@ -1184,6 +1225,141 @@
     var dontShow=document.getElementById('popup-dont-show').checked;
     if(dontShow) dismissPopup(modal.dataset.popupId);
     modal.style.display='none';
+  }
+
+  /* =========================================================================
+     サイト機能設定（閲覧数カウント・非公開フィードバック・右下フローティングメニュー）
+     admin.html の「📣 サイト機能設定」で編集される settings/viewCount,
+     settings/feedback, settings/floatingMenu を参照する。
+     ========================================================================= */
+  var siteSettings = { viewCount:{enabled:false}, feedback:{enabled:false}, floatingMenu:{enabled:false,items:[]} };
+  var _pendingFeedbackVal = null;
+
+  async function loadSiteFeatureSettings(){
+    var db=window._db; var ops=window._firestoreOp;
+    if(!db||!ops) return;
+    try{
+      var results = await Promise.all([
+        ops.getDoc(ops.doc(db,'settings','viewCount')).catch(function(){return null;}),
+        ops.getDoc(ops.doc(db,'settings','feedback')).catch(function(){return null;}),
+        ops.getDoc(ops.doc(db,'settings','floatingMenu')).catch(function(){return null;})
+      ]);
+      if(results[0] && results[0].exists()) siteSettings.viewCount = results[0].data();
+      if(results[1] && results[1].exists()) siteSettings.feedback = results[1].data();
+      if(results[2] && results[2].exists()) siteSettings.floatingMenu = results[2].data();
+    }catch(e){ console.error('loadSiteFeatureSettings:', e); }
+    renderFloatingMenu();
+  }
+
+  /* ---- 記事の閲覧数カウント ---- */
+  function trackArticleView(a){
+    var cfg = siteSettings.viewCount || {};
+    if(!cfg.enabled || !a || !a.id) return;
+    var mode = cfg.countMode || 'once_per_session';
+    if(mode === 'once_per_session'){
+      var key = 'ankatsu_view_' + a.id;
+      var last = localStorage.getItem(key);
+      var cooldownMs = Math.max(1,(cfg.cooldownMinutes||30)) * 60000;
+      if(last && (Date.now() - parseInt(last,10)) < cooldownMs) return;
+      localStorage.setItem(key, String(Date.now()));
+    }
+    var db=window._db; var ops=window._firestoreOp;
+    if(!db||!ops) return;
+    a.viewCount = (a.viewCount||0) + 1; // 楽観的に画面側もすぐ反映
+    ops.updateDoc(ops.doc(db,'articles',a.id), { viewCount: ops.increment(1) })
+      .catch(function(e){ console.error('viewCount更新エラー:', e); });
+  }
+
+  /* ---- 非公開フィードバック（このページはどうでしたか） ---- */
+  function feedbackWidgetHtml(a){
+    var cfg = siteSettings.feedback || {};
+    if(!cfg.enabled) return '';
+    var seenKey = 'ankatsu_feedback_' + a.id;
+    if(cfg.oncePerArticle !== false && localStorage.getItem(seenKey)) return '';
+    var type = cfg.type || 'emoji3';
+    var buttonsHtml = type === 'helpful2'
+      ? '<button type="button" class="fb-btn" onclick="selectFeedback(this,\'helpful\')">👍 役に立った</button>'
+        + '<button type="button" class="fb-btn" onclick="selectFeedback(this,\'not_helpful\')">👎 役に立たなかった</button>'
+      : '<button type="button" class="fb-btn" onclick="selectFeedback(this,\'good\')">😊</button>'
+        + '<button type="button" class="fb-btn" onclick="selectFeedback(this,\'normal\')">😐</button>'
+        + '<button type="button" class="fb-btn" onclick="selectFeedback(this,\'bad\')">☹️</button>';
+    return '<div class="feedback-box" id="feedback-box" data-article-id="'+a.id+'">'
+      + '<div class="feedback-q">この記事はどうでしたか？</div>'
+      + '<div class="feedback-buttons" id="feedback-buttons">'+buttonsHtml+'</div>'
+      + '<div class="feedback-comment-wrap" id="feedback-comment-wrap" style="display:none">'
+      + '<textarea id="feedback-comment" placeholder="よろしければ理由を教えてください（任意）"></textarea>'
+      + '<button type="button" class="feedback-submit-btn" onclick="submitFeedback()">送信する</button>'
+      + '</div>'
+      + '<div class="feedback-thanks" id="feedback-thanks" style="display:none">ご協力ありがとうございました！</div>'
+      + '</div>';
+  }
+
+  function selectFeedback(btn, val){
+    _pendingFeedbackVal = val;
+    document.querySelectorAll('#feedback-buttons .fb-btn').forEach(function(b){ b.classList.remove('selected'); });
+    btn.classList.add('selected');
+    document.getElementById('feedback-comment-wrap').style.display = 'block';
+  }
+
+  async function submitFeedback(){
+    var cfg = siteSettings.feedback || {};
+    var box = document.getElementById('feedback-box');
+    var articleId = box ? box.dataset.articleId : null;
+    var comment = document.getElementById('feedback-comment').value.trim();
+    if(!_pendingFeedbackVal){ alert('評価を選んでください'); return; }
+    if(cfg.commentRequired && !comment){ alert('コメントを入力してください'); return; }
+
+    var db=window._db; var ops=window._firestoreOp;
+    var a = allArticles.find(function(x){ return x.id===articleId; }) || {};
+    try{
+      await ops.addDoc(ops.collection(db,'feedback'), {
+        articleId: articleId||'', articleTitle: a.title||'',
+        rating: _pendingFeedbackVal, comment: comment, createdAt: ops.serverTimestamp()
+      });
+
+      var negativeVals = ['bad','not_helpful'];
+      if(cfg.notifyOnNegative && negativeVals.indexOf(_pendingFeedbackVal)>=0){
+        sendContactGasMail({
+          type: 'feedback_negative_notify', to: CONTACT_ADMIN_NOTIFY_EMAIL,
+          title: a.title||'（不明な記事）', rating: _pendingFeedbackVal,
+          comment: comment||'（コメントなし）',
+          article_url: a.id ? buildShareUrl(a) : '',
+          admin_url: location.origin + location.pathname.replace('index.html','') + 'admin.html'
+        });
+      }
+
+      if(cfg.oncePerArticle !== false && articleId) localStorage.setItem('ankatsu_feedback_'+articleId, '1');
+      document.getElementById('feedback-buttons').style.display='none';
+      document.getElementById('feedback-comment-wrap').style.display='none';
+      document.getElementById('feedback-thanks').style.display='block';
+    }catch(e){ alert('送信に失敗しました: '+e.message); }
+  }
+
+  /* ---- 右下フローティングメニュー ---- */
+  function renderFloatingMenu(){
+    var existing = document.getElementById('floating-menu-wrap');
+    if(existing) existing.remove();
+    var cfg = siteSettings.floatingMenu || {};
+    if(!cfg.enabled) return;
+    if(cfg.hideOnMobile && window.innerWidth <= 640) return;
+    var items = Array.isArray(cfg.items) ? cfg.items.filter(function(it){ return it && it.url; }) : [];
+    if(!items.length) return;
+
+    var wrap = document.createElement('div');
+    wrap.id = 'floating-menu-wrap';
+    wrap.className = 'floating-menu-wrap';
+    var itemsHtml = items.map(function(it){
+      var targetAttr = it.newTab===false ? '' : ' target="_blank" rel="noopener"';
+      return '<a class="floating-menu-item" href="'+it.url+'"'+targetAttr+'><span class="fmi-icon">'+(it.icon||'💬')+'</span><span class="fmi-label">'+(it.label||'')+'</span></a>';
+    }).join('');
+    wrap.innerHTML =
+      '<div class="floating-menu-list" id="floating-menu-list">'+itemsHtml+'</div>'
+      + '<button type="button" class="floating-menu-toggle" id="floating-menu-toggle" onclick="toggleFloatingMenu()">💬</button>';
+    document.body.appendChild(wrap);
+  }
+  function toggleFloatingMenu(){
+    var wrap = document.getElementById('floating-menu-wrap');
+    if(wrap) wrap.classList.toggle('open');
   }
 
   /* ---- Firestore 記事取得 ---- */
@@ -1298,6 +1474,7 @@
     var a=allArticles.find(function(x){return x.id===id||x.slug===id;});
     if(!a) return;
     history.pushState({view:'article',id:id},'','#article/'+(a.slug||a.id));
+    trackArticleView(a);
     renderArticle(a); showView('article');
   }
 
@@ -1331,13 +1508,22 @@
       +seriesBadge
       +'<div class="article-cat-badge">'+(a.category||'記事')+'</div>'
       +'<h1 class="article-title">'+a.title+'</h1>'
-      +'<div class="article-meta"><span>✍️ <span class="author-name-link" onclick="openAuthor(\''+(a.author||'編集部').replace(/'/g,"\\'")+'\')">'+(a.author||'編集部')+'</span></span><span>📅 '+fmtDate(a.createdAt)+'</span></div>'
+      +'<div class="article-meta"><span>✍️ <span class="author-name-link" onclick="openAuthor(\''+(a.author||'編集部').replace(/'/g,"\\'")+'\')">'+(a.author||'編集部')+'</span></span><span>📅 '+fmtDate(a.createdAt)+'</span>'+articleViewCountHtml(a)+'</div>'
       +mapLink
       +shareBar
       +'</header>'+img
       +'<div class="article-body">'+(a.body||'<p>本文がありません。</p>')+'</div>'
-      +'<div class="article-tags">'+tags+'</div>';
+      +'<div class="article-tags">'+tags+'</div>'
+      +feedbackWidgetHtml(a);
     document.title=a.title+' | アンカツ＋';
+  }
+
+  function articleViewCountHtml(a){
+    var cfg = siteSettings.viewCount || {};
+    if(!cfg.enabled || !cfg.showToReaders) return '';
+    var n = a.viewCount || 0;
+    var tpl = cfg.displayText || '👀 {{n}} 回読まれました';
+    return '<span class="article-view-count">'+tpl.replace('{{n}}', n)+'</span>';
   }
 
   /* ---- 記事共有機能 ---- */
@@ -1767,7 +1953,7 @@
   }
 
   /* ---- お問い合わせフォーム：GAS自動返信 ---- */
-  var CONTACT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyK9Q9uV7HZieT8CdjBc08Y6x7kx_d_e1DGPSrLk3ISAiZB0Mqm7g1OVGC1fZgEEi6kXQ/exec'; /* ← submit.htmlと同じGASのURL */
+  var CONTACT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxOd6W-tYb-p9hwVtfPK9JVhGT-gxvF3SiS-l-N6px5FHjOsnhSrP5rA36TApmHLCNCWA/exec'; /* ← submit.htmlと同じGASのURL */
   var CONTACT_ADMIN_NOTIFY_EMAIL = 'oruto1157oruto2@gmail.com,kvsrbe1236@yahoo.ne.jp,ankatsu.sumoto@gmail.com'; /* ← submit.htmlのADMIN_NOTIFY_EMAILと同じでOK */
   function sendContactGasMail(payload){
     if(!CONTACT_GAS_URL || CONTACT_GAS_URL.indexOf('XXXX')>=0) return;
@@ -1815,7 +2001,7 @@
   window.addEventListener('popstate',function(){
     var h=location.hash;
     if(!h||h==='#'){showView('top');return;}
-    if(h.startsWith('#article/')){var id=decodeURIComponent(h.slice(9));var a=allArticles.find(function(x){return x.slug===id||x.id===id;});if(a){renderArticle(a);showView('article');}}
+    if(h.startsWith('#article/')){var id=decodeURIComponent(h.slice(9));var a=allArticles.find(function(x){return x.slug===id||x.id===id;});if(a){trackArticleView(a);renderArticle(a);showView('article');}}
     else if(h==='#series')          filterByCategory('series');
     else if(h.startsWith('#series/')){var sid=decodeURIComponent(h.slice(8));var s=allSeries.find(function(x){return x.slug===sid||x.id===sid;});if(s){renderSeriesDetail(s);showView('series-detail');}}
     else if(h==='#calendar')        filterByCategory('calendar');
@@ -1831,7 +2017,7 @@
   function handleInitialHash(){
     var h=location.hash;
     if(!h) return;
-    if(h.startsWith('#article/')){var id=decodeURIComponent(h.slice(9));var a=allArticles.find(function(x){return x.slug===id||x.id===id;});if(a){renderArticle(a);showView('article');}}
+    if(h.startsWith('#article/')){var id=decodeURIComponent(h.slice(9));var a=allArticles.find(function(x){return x.slug===id||x.id===id;});if(a){trackArticleView(a);renderArticle(a);showView('article');}}
     else if(h==='#series')          filterByCategory('series');
     else if(h.startsWith('#series/')){var sid=decodeURIComponent(h.slice(8));var s=allSeries.find(function(x){return x.slug===sid||x.id===sid;});if(s){renderSeriesDetail(s);showView('series-detail');}}
     else if(h==='#calendar')        filterByCategory('calendar');
@@ -1873,6 +2059,7 @@
       checkMaintenance();
       setInterval(checkMaintenance, MAINTENANCE_CHECK_INTERVAL);
       initPushNotifications();
+      loadSiteFeatureSettings();
       Promise.all([loadArticles(), loadSeries(), loadAuthors()]).then(handleInitialHash);
     }
   }
