@@ -353,6 +353,8 @@
       <button class="sb-btn"     data-v="authors">✍️ 執筆者紹介</button>
       <button class="sb-btn"     data-v="spots">🗺️ 地図スポット</button>
       <button class="sb-btn"     data-v="breaking">📡 速報バー設定</button>
+      <button class="sb-btn"     data-v="sitefeatures">📣 サイト機能設定</button>
+      <button class="sb-btn"     data-v="feedbacklist">💬 記事フィードバック</button>
       <button class="sb-btn"     data-v="json">📦 JSON入出力</button>
       <div class="sb-sec" style="margin-top:.5rem">サイト</div>
       <a class="sb-btn" href="index.html" target="_blank">🌐 サイトを開く</a>
@@ -943,6 +945,151 @@
         </div>
       </div>
 
+      <!-- サイト機能設定 -->
+      <div id="v-sitefeatures" class="view">
+
+        <div class="bpanel">
+          <h3>👀 記事の閲覧数カウント</h3>
+          <div class="trow">
+            <div class="tswitch" id="vc-toggle" onclick="toggleSF('vc-toggle')"></div>
+            <span id="vc-toggle-label">閲覧数カウント（OFF）</span>
+          </div>
+          <div class="fgrid" style="margin-top:1rem">
+            <div class="frow">
+              <label class="flabel">カウント方式</label>
+              <select id="vc-mode" class="fselect">
+                <option value="once_per_session">同じ端末は一定時間に1回だけカウント（推奨）</option>
+                <option value="always">開くたびに毎回カウント</option>
+              </select>
+            </div>
+            <div class="frow">
+              <label class="flabel">クールダウン時間（分）</label>
+              <input id="vc-cooldown" type="number" class="finput" value="30" min="1" />
+              <span class="fhint">「同じ端末は一定時間に1回だけ」の場合の間隔</span>
+            </div>
+            <div class="frow full">
+              <div class="crow">
+                <input id="vc-show" type="checkbox" />
+                <label for="vc-show">👁️ 読者にも閲覧数を見せる（記事ページに表示）</label>
+              </div>
+            </div>
+            <div class="frow full">
+              <label class="flabel">表示文言（{{n}}が数字に置き換わります）</label>
+              <input id="vc-text" type="text" class="finput" value="👀 {{n}} 回読まれました" />
+            </div>
+          </div>
+          <div style="margin-top:1.25rem">
+            <button class="btn btn-g" onclick="saveSF_viewCount()">💾 保存</button>
+          </div>
+        </div>
+
+        <div class="bpanel">
+          <h3>💬 非公開フィードバック（このページはどうでしたか）</h3>
+          <div class="trow">
+            <div class="tswitch" id="fb-toggle" onclick="toggleSF('fb-toggle')"></div>
+            <span id="fb-toggle-label">フィードバック機能（OFF）</span>
+          </div>
+          <div class="fgrid" style="margin-top:1rem">
+            <div class="frow">
+              <label class="flabel">評価の形式</label>
+              <select id="fb-type" class="fselect">
+                <option value="emoji3">😊😐☹️（3段階）</option>
+                <option value="helpful2">👍役に立った／👎役に立たなかった</option>
+              </select>
+            </div>
+            <div class="frow full">
+              <div class="crow">
+                <input id="fb-commentrequired" type="checkbox" />
+                <label for="fb-commentrequired">コメント入力を必須にする</label>
+              </div>
+            </div>
+            <div class="frow full">
+              <div class="crow">
+                <input id="fb-onceperarticle" type="checkbox" checked />
+                <label for="fb-onceperarticle">同じ記事には1端末1回までにする（何度でも回答可にする場合は外す）</label>
+              </div>
+            </div>
+            <div class="frow full">
+              <div class="crow">
+                <input id="fb-notifynegative" type="checkbox" checked />
+                <label for="fb-notifynegative">低評価（☹️ / 役に立たなかった）が来たら管理者にメール通知する</label>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:1.25rem">
+            <button class="btn btn-g" onclick="saveSF_feedback()">💾 保存</button>
+          </div>
+        </div>
+
+        <div class="bpanel">
+          <h3>📣 お知らせポップアップ（表示条件）</h3>
+          <p style="font-size:.82rem;color:var(--muted);margin-bottom:1rem">ポップアップの本文自体は準備中です。ここでは表示タイミング・期間だけ設定できます。既存の本文設定と合わせてご利用ください。</p>
+          <div class="trow">
+            <div class="tswitch" id="pu-toggle" onclick="toggleSF('pu-toggle')"></div>
+            <span id="pu-toggle-label">ポップアップ（OFF）</span>
+          </div>
+          <div class="fgrid" style="margin-top:1rem">
+            <div class="frow full">
+              <label class="flabel">本文（HTML可）</label>
+              <textarea id="pu-html" class="finput" style="min-height:120px;resize:vertical;font-family:inherit" placeholder="<p>お知らせ内容をここに書いてください</p>"></textarea>
+            </div>
+            <div class="frow">
+              <label class="flabel">表示開始日時（空欄なら即時）</label>
+              <input id="pu-start" type="datetime-local" class="finput" />
+            </div>
+            <div class="frow">
+              <label class="flabel">表示終了日時（空欄なら無期限）</label>
+              <input id="pu-end" type="datetime-local" class="finput" />
+            </div>
+            <div class="frow">
+              <label class="flabel">表示までの遅延（秒）</label>
+              <input id="pu-delay" type="number" class="finput" value="0" min="0" />
+            </div>
+            <div class="frow full">
+              <div class="crow">
+                <input id="pu-allpages" type="checkbox" checked />
+                <label for="pu-allpages">全ページで表示する（外すとトップページのみ）</label>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:1.25rem">
+            <button class="btn btn-g" onclick="saveSF_popup()">💾 保存</button>
+          </div>
+        </div>
+
+        <div class="bpanel">
+          <h3>🗨️ 右下フローティングメニュー</h3>
+          <div class="trow">
+            <div class="tswitch" id="fm-toggle" onclick="toggleSF('fm-toggle')"></div>
+            <span id="fm-toggle-label">フローティングメニュー（OFF）</span>
+          </div>
+          <div class="frow" style="margin-top:1rem;max-width:300px">
+            <div class="crow">
+              <input id="fm-hidemobile" type="checkbox" />
+              <label for="fm-hidemobile">スマホでは非表示にする</label>
+            </div>
+          </div>
+          <div class="flabel" style="margin:1rem 0 .5rem">メニュー項目</div>
+          <div id="fm-items" style="display:flex;flex-direction:column;gap:.6rem"></div>
+          <button class="bi-add" onclick="addFmItem()">＋ 項目を追加</button>
+          <div style="margin-top:1.25rem">
+            <button class="btn btn-g" onclick="saveSF_floatingMenu()">💾 保存</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 記事フィードバック一覧 -->
+      <div id="v-feedbacklist" class="view">
+        <div class="panel">
+          <div class="phead">
+            <span class="ptitle">記事フィードバック（非公開）</span>
+            <span id="fbl-count" style="font-size:.8rem;color:var(--muted)"></span>
+          </div>
+          <div id="fbl-list"></div>
+        </div>
+      </div>
+
       <!-- JSON入出力 -->
       <div id="v-json" class="view">
         <div class="jpanel">
@@ -1077,8 +1224,8 @@
 // ============================================================
 var PIN        = '2506';          // ← 削除PINコード
 var DRAFT_KEY  = 'ankatsu_drafts'; // localStorage キー
-var SUBMIT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyK9Q9uV7HZieT8CdjBc08Y6x7kx_d_e1DGPSrLk3ISAiZB0Mqm7g1OVGC1fZgEEi6kXQ/exec'; // submit.htmlと同じGASのURLに書き換え
-var ADMIN_API_SECRET = 'aK9x!mQ2vR7pL4wZ8nB1sT6yU3dF0hJ5'; // ← GASのスクリプトプロパティ ADMIN_API_SECRET と必ず同じ値にする
+var SUBMIT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxOd6W-tYb-p9hwVtfPK9JVhGT-gxvF3SiS-l-N6px5FHjOsnhSrP5rA36TApmHLCNCWA/exec'; // submit.htmlと同じGASのURLに書き換え
+var ADMIN_API_SECRET = 'CHANGE_THIS_TO_A_LONG_RANDOM_STRING'; // ← GASのスクリプトプロパティ ADMIN_API_SECRET と必ず同じ値にする
 
 function sendResultMail(type, payload) {
   if (!SUBMIT_GAS_URL || SUBMIT_GAS_URL.indexOf('XXXX') >= 0) return;
@@ -1140,7 +1287,8 @@ var VTITLES = {
   series:'📚 連載・特集',
   authors:'✍️ 執筆者紹介',
   spots:'🗺️ 地図スポット',
-  breaking:'📡 速報バー設定', json:'📦 JSON入出力'
+  breaking:'📡 速報バー設定', json:'📦 JSON入出力',
+  sitefeatures:'📣 サイト機能設定', feedbacklist:'💬 記事フィードバック'
 };
 
 // 承認済み投稿者が使えるビュー（記事の投稿・自分の記事の編集・プロフィール編集）
@@ -1214,6 +1362,8 @@ async function goView(key) {
   }
   if (key==='spots')     { closeSpotForm(); await loadSpots(); renderSpotsAdminList(); }
   if (key==='breaking')  loadBreaking();
+  if (key==='sitefeatures') loadSiteFeatureSettings();
+  if (key==='feedbacklist') renderFeedbackList();
   closeSB();
   window.scrollTo(0,0);
 }
@@ -3027,6 +3177,179 @@ async function saveBreaking() {
     await window._setDoc('settings','breaking',{breakingVisible:breakingOn,breakingLabel:label,breakingItems:items});
     toast('速報バー設定を保存しました ✅');
   } catch(e){ toast('保存失敗: '+e.message,'error'); }
+}
+
+// ============================================================
+// サイト機能設定（閲覧数カウント / 非公開フィードバック / ポップアップ表示条件 / フローティングメニュー）
+// ============================================================
+function toggleSF(toggleId) {
+  document.getElementById(toggleId).classList.toggle('on');
+}
+function setSFToggle(toggleId, labelId, on, onText, offText) {
+  document.getElementById(toggleId).classList.toggle('on', !!on);
+  document.getElementById(labelId).textContent = on ? onText+'（ON）' : offText+'（OFF）';
+}
+// トグルのラベル文言を毎回書くのは冗長なので、ON/OFFだけ切り替える簡易版に統一
+function isSFOn(toggleId) { return document.getElementById(toggleId).classList.contains('on'); }
+
+async function loadSiteFeatureSettings() {
+  try {
+    var [vcSnap, fbSnap, puSnap, fmSnap] = await Promise.all([
+      window._getDoc('settings','viewCount'),
+      window._getDoc('settings','feedback'),
+      window._getDoc('settings','popup'),
+      window._getDoc('settings','floatingMenu')
+    ]);
+
+    var vc = vcSnap.exists() ? vcSnap.data() : {};
+    document.getElementById('vc-toggle').classList.toggle('on', !!vc.enabled);
+    document.getElementById('vc-toggle-label').textContent = '閲覧数カウント（' + (vc.enabled?'ON':'OFF') + '）';
+    document.getElementById('vc-mode').value = vc.countMode || 'once_per_session';
+    document.getElementById('vc-cooldown').value = vc.cooldownMinutes || 30;
+    document.getElementById('vc-show').checked = !!vc.showToReaders;
+    document.getElementById('vc-text').value = vc.displayText || '👀 {{n}} 回読まれました';
+
+    var fb = fbSnap.exists() ? fbSnap.data() : {};
+    document.getElementById('fb-toggle').classList.toggle('on', !!fb.enabled);
+    document.getElementById('fb-toggle-label').textContent = 'フィードバック機能（' + (fb.enabled?'ON':'OFF') + '）';
+    document.getElementById('fb-type').value = fb.type || 'emoji3';
+    document.getElementById('fb-commentrequired').checked = !!fb.commentRequired;
+    document.getElementById('fb-onceperarticle').checked = fb.oncePerArticle !== false;
+    document.getElementById('fb-notifynegative').checked = fb.notifyOnNegative !== false;
+
+    var pu = puSnap.exists() ? puSnap.data() : {};
+    document.getElementById('pu-toggle').classList.toggle('on', !!pu.enabled);
+    document.getElementById('pu-toggle-label').textContent = 'ポップアップ（' + (pu.enabled?'ON':'OFF') + '）';
+    document.getElementById('pu-html').value = pu.html || '';
+    document.getElementById('pu-start').value = pu.startAt ? toDatetimeLocal(new Date(pu.startAt)) : '';
+    document.getElementById('pu-end').value = pu.endAt ? toDatetimeLocal(new Date(pu.endAt)) : '';
+    document.getElementById('pu-delay').value = pu.delaySeconds || 0;
+    document.getElementById('pu-allpages').checked = pu.showOnAllPages !== false;
+
+    var fm = fmSnap.exists() ? fmSnap.data() : {};
+    document.getElementById('fm-toggle').classList.toggle('on', !!fm.enabled);
+    document.getElementById('fm-toggle-label').textContent = 'フローティングメニュー（' + (fm.enabled?'ON':'OFF') + '）';
+    document.getElementById('fm-hidemobile').checked = !!fm.hideOnMobile;
+    renderFmItems(fm.items || []);
+  } catch (e) { console.error('loadSiteFeatureSettings:', e); toast('サイト機能設定の読み込みに失敗しました', 'error'); }
+}
+
+async function saveSF_viewCount() {
+  try {
+    await window._setDoc('settings','viewCount', {
+      enabled: isSFOn('vc-toggle'),
+      countMode: document.getElementById('vc-mode').value,
+      cooldownMinutes: parseInt(document.getElementById('vc-cooldown').value,10) || 30,
+      showToReaders: document.getElementById('vc-show').checked,
+      displayText: document.getElementById('vc-text').value.trim() || '👀 {{n}} 回読まれました'
+    });
+    toast('閲覧数カウント設定を保存しました ✅');
+  } catch(e) { toast('保存失敗: '+e.message,'error'); }
+}
+
+async function saveSF_feedback() {
+  try {
+    await window._setDoc('settings','feedback', {
+      enabled: isSFOn('fb-toggle'),
+      type: document.getElementById('fb-type').value,
+      commentRequired: document.getElementById('fb-commentrequired').checked,
+      oncePerArticle: document.getElementById('fb-onceperarticle').checked,
+      notifyOnNegative: document.getElementById('fb-notifynegative').checked
+    });
+    toast('フィードバック設定を保存しました ✅');
+  } catch(e) { toast('保存失敗: '+e.message,'error'); }
+}
+
+async function saveSF_popup() {
+  var html = document.getElementById('pu-html').value.trim();
+  if (isSFOn('pu-toggle') && !html) { toast('本文を入力してください','warn'); return; }
+  try {
+    var startVal = document.getElementById('pu-start').value;
+    var endVal   = document.getElementById('pu-end').value;
+    await window._setDoc('settings','popup', {
+      enabled: isSFOn('pu-toggle'),
+      popupId: 'popup_' + Date.now(), // 内容が変わるたびに新しいIDにして「二度と表示しない」をリセット
+      html: html,
+      startAt: startVal ? new Date(startVal).toISOString() : '',
+      endAt:   endVal   ? new Date(endVal).toISOString()   : '',
+      delaySeconds: parseInt(document.getElementById('pu-delay').value,10) || 0,
+      showOnAllPages: document.getElementById('pu-allpages').checked
+    });
+    toast('ポップアップ設定を保存しました ✅');
+  } catch(e) { toast('保存失敗: '+e.message,'error'); }
+}
+
+function renderFmItems(items) {
+  document.getElementById('fm-items').innerHTML = items.map(function(it, idx){
+    return '<div class="birow" style="align-items:flex-start">'
+      + '<input type="text" placeholder="絵文字" value="'+(it.icon||'').replace(/"/g,'&quot;')+'" style="max-width:70px" data-fm="icon" data-idx="'+idx+'" />'
+      + '<input type="text" placeholder="表示文言" value="'+(it.label||'').replace(/"/g,'&quot;')+'" data-fm="label" data-idx="'+idx+'" />'
+      + '<input type="text" placeholder="リンク先URL" value="'+(it.url||'').replace(/"/g,'&quot;')+'" style="flex:2" data-fm="url" data-idx="'+idx+'" />'
+      + '<button class="bi-del" onclick="this.parentElement.remove()">✕</button>'
+      + '</div>';
+  }).join('');
+}
+function addFmItem() {
+  var wrap = document.getElementById('fm-items');
+  var idx = wrap.children.length;
+  var row = document.createElement('div');
+  row.className = 'birow';
+  row.style.alignItems = 'flex-start';
+  row.innerHTML =
+    '<input type="text" placeholder="絵文字" style="max-width:70px" data-fm="icon" data-idx="'+idx+'" />'
+    + '<input type="text" placeholder="表示文言" data-fm="label" data-idx="'+idx+'" />'
+    + '<input type="text" placeholder="リンク先URL" style="flex:2" data-fm="url" data-idx="'+idx+'" />'
+    + '<button class="bi-del" onclick="this.parentElement.remove()">✕</button>';
+  wrap.appendChild(row);
+}
+async function saveSF_floatingMenu() {
+  var items = [];
+  document.querySelectorAll('#fm-items .birow').forEach(function(row){
+    var icon = row.querySelector('[data-fm="icon"]').value.trim();
+    var label = row.querySelector('[data-fm="label"]').value.trim();
+    var url = row.querySelector('[data-fm="url"]').value.trim();
+    if (url) items.push({ icon: icon||'💬', label: label, url: url, newTab: true });
+  });
+  try {
+    await window._setDoc('settings','floatingMenu', {
+      enabled: isSFOn('fm-toggle'),
+      hideOnMobile: document.getElementById('fm-hidemobile').checked,
+      items: items
+    });
+    toast('フローティングメニュー設定を保存しました ✅');
+  } catch(e) { toast('保存失敗: '+e.message,'error'); }
+}
+
+// ============================================================
+// 記事フィードバック一覧（非公開）
+// ============================================================
+var feedbackList = [];
+async function renderFeedbackList() {
+  try {
+    var snap = await window._getAll('feedback');
+    feedbackList = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+    feedbackList.sort(function(a,b){
+      try { var ta=(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():new Date(0); var tb=(b.createdAt&&b.createdAt.toDate)?b.createdAt.toDate():new Date(0); return tb-ta; }
+      catch(e){ return 0; }
+    });
+  } catch(e) { console.error('renderFeedbackList:', e); toast('フィードバックの読み込みに失敗しました','error'); return; }
+
+  document.getElementById('fbl-count').textContent = '全' + feedbackList.length + '件';
+  var wrap = document.getElementById('fbl-list');
+  if (!feedbackList.length) { wrap.innerHTML = '<div class="etbl">フィードバックはまだありません。</div>'; return; }
+
+  var RATING_LABEL = { good:'😊', normal:'😐', bad:'☹️', helpful:'👍 役に立った', not_helpful:'👎 役に立たなかった' };
+  var NEGATIVE = ['bad','not_helpful'];
+  wrap.innerHTML = feedbackList.map(function(f){
+    var neg = NEGATIVE.indexOf(f.rating) >= 0;
+    return '<div class="citem" style="cursor:default">'
+      + '<div class="cdot" style="background:'+(neg?'var(--red)':'var(--green)')+'"></div>'
+      + '<div class="cinfo">'
+      + '<div class="cname">'+(RATING_LABEL[f.rating]||f.rating)+'<span style="font-weight:400;color:var(--light);font-size:.76rem;margin-left:.5rem">'+(f.articleTitle||'（記事不明）')+'</span></div>'
+      + '<div class="cmeta">'+fmtDate(f.createdAt)+'</div>'
+      + (f.comment ? '<div class="cprev" style="white-space:normal;max-width:none">'+f.comment+'</div>' : '')
+      + '</div></div>';
+  }).join('');
 }
 
 // ============================================================
