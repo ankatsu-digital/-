@@ -354,6 +354,7 @@
       <button class="sb-btn"     data-v="spots">🗺️ 地図スポット</button>
       <button class="sb-btn"     data-v="breaking">📡 速報バー設定</button>
       <button class="sb-btn"     data-v="sitefeatures">📣 サイト機能設定</button>
+      <button class="sb-btn"     data-v="analytics">📊 記事アナリティクス</button>
       <button class="sb-btn"     data-v="feedbacklist">💬 記事フィードバック</button>
       <button class="sb-btn"     data-v="json">📦 JSON入出力</button>
       <div class="sb-sec" style="margin-top:.5rem">サイト</div>
@@ -1071,12 +1072,42 @@
           </div>
           <div class="flabel" style="margin:1rem 0 .5rem">メニュー項目</div>
           <div id="fm-items" style="display:flex;flex-direction:column;gap:.6rem"></div>
-          <button class="bi-add" onclick="addFmItem()">＋ 項目を追加</button>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.6rem">
+            <button class="btn btn-o btn-sm" type="button" onclick="addFmItem('','投稿申請はこちら','submit.html')">＋ 投稿申請</button>
+            <button class="btn btn-o btn-sm" type="button" onclick="addFmItem('','投稿者登録はこちら','register.html')">＋ 投稿者登録</button>
+            <button class="btn btn-o btn-sm" type="button" onclick="addFmItem('','お問い合わせ','index.html#page/contact')">＋ お問い合わせ</button>
+            <button class="bi-add" onclick="addFmItem()">＋ 空欄を追加</button>
+          </div>
           <div style="margin-top:1.25rem">
             <button class="btn btn-g" onclick="saveSF_floatingMenu()">💾 保存</button>
           </div>
         </div>
 
+      </div>
+
+      <!-- 記事アナリティクス -->
+      <div id="v-analytics" class="view">
+        <div class="panel" id="analytics-list-panel">
+          <div class="phead">
+            <span class="ptitle">記事アナリティクス</span>
+            <span id="an-count" style="font-size:.8rem;color:var(--muted)"></span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr><th>タイトル</th><th>閲覧数</th><th>平均滞在時間</th><th>主な流入元</th></tr></thead>
+              <tbody id="an-tbody"></tbody>
+            </table>
+            <div id="an-empty" class="etbl" style="display:none">まだアクセスデータがありません。</div>
+          </div>
+        </div>
+
+        <div class="fcard" id="analytics-detail-panel" style="display:none">
+          <div class="fhead">
+            <button class="btn btn-o btn-sm" onclick="closeAnalyticsDetail()">← 一覧へ</button>
+            <span id="analytics-detail-title" style="font-weight:700;font-size:.95rem">記事の詳細</span>
+          </div>
+          <div class="fbody" id="analytics-detail-body"></div>
+        </div>
       </div>
 
       <!-- 記事フィードバック一覧 -->
@@ -1245,6 +1276,7 @@ var series    = [];
 var spots     = [];
 var authors   = [];
 var editingId = null;
+var editingDraftId = null; // 下書きを開いて編集中の場合、その下書きの_draftId（下書き保存の上書き判定に使う）
 var editingSpotId = null;
 var editingAuthorId = null;
 var curContact = null;
@@ -1288,7 +1320,7 @@ var VTITLES = {
   authors:'✍️ 執筆者紹介',
   spots:'🗺️ 地図スポット',
   breaking:'📡 速報バー設定', json:'📦 JSON入出力',
-  sitefeatures:'📣 サイト機能設定', feedbacklist:'💬 記事フィードバック'
+  sitefeatures:'📣 サイト機能設定', feedbacklist:'💬 記事フィードバック', analytics:'📊 記事アナリティクス'
 };
 
 // 承認済み投稿者が使えるビュー（記事の投稿・自分の記事の編集・プロフィール編集）
@@ -1337,7 +1369,7 @@ async function goView(key) {
   if (key==='new'||key==='edit') document.getElementById('form-title').textContent = VTITLES[key];
   document.querySelectorAll('.sb-btn[data-v]').forEach(function(b){ b.classList.toggle('on', b.dataset.v===key); });
   if (key==='new'||key==='edit') { await Promise.all([loadSeries(), loadSpots(), loadAuthors()]); populateAuthorDatalist(); }
-  if (key==='new')       { resetForm(); editingId=null; }
+  if (key==='new')       { resetForm(); editingId=null; editingDraftId=null; }
   if (key==='articles')  { await loadArticles(); renderArticles(); }
   if (key==='dashboard') {
     var isAdmin = _role === 'admin';
@@ -1363,6 +1395,7 @@ async function goView(key) {
   if (key==='spots')     { closeSpotForm(); await loadSpots(); renderSpotsAdminList(); }
   if (key==='breaking')  loadBreaking();
   if (key==='sitefeatures') loadSiteFeatureSettings();
+  if (key==='analytics') { document.getElementById('analytics-detail-panel').style.display='none'; document.getElementById('analytics-list-panel').style.display='block'; renderAnalyticsList(); }
   if (key==='feedbacklist') renderFeedbackList();
   closeSB();
   window.scrollTo(0,0);
@@ -2788,6 +2821,7 @@ function setFormData(d) {
 
 function resetForm() {
   editingId = null;
+  editingDraftId = null;
   setFormData({});
   resetSubForm();
 }
@@ -2824,6 +2858,7 @@ async function pubArticle() {
       }
       await window._addDoc('articles', d);
       toast(scheduleOn ? '予約投稿を設定しました ⏰' : '記事を公開しました ✅');
+      if (editingDraftId) { delDraft(editingDraftId); editingDraftId = null; } // 下書きから公開した場合は元の下書きを消す
     }
     await loadArticles();
     goView('articles');
@@ -2844,6 +2879,7 @@ function startEdit(id) {
   var canEdit = _role === 'admin' || _myPermissions.indexOf('articles.edit') >= 0 || (myUid && a.authorUid === myUid);
   if (!canEdit) { toast('この記事を編集する権限がありません', 'error'); return; }
   editingId = id;
+  editingDraftId = null; // 公開済み記事の編集であり下書きの編集ではない
   setFormData(a);
   goView('edit');
 }
@@ -2941,11 +2977,13 @@ function saveDraft() {
   var d = getFormData();
   if (!d.title) { toast('タイトルだけは入力してください','warn'); return; }
   var drafts = getDrafts();
-  var id = editingId || ('draft_'+Date.now());
+  // 下書きを開いて編集し直している場合はそのIDを最優先で使う（じゃないと保存のたびに別の下書きとして増えていく）
+  var id = editingDraftId || ('draft_'+Date.now());
   var idx = drafts.findIndex(function(x){ return x._draftId===id; });
   var item = Object.assign({}, d, {_draftId: id, _savedAt: new Date().toISOString()});
   if (idx>=0) drafts[idx]=item; else drafts.unshift(item);
   saveDraftLS(drafts);
+  editingDraftId = id; // 保存後も同じ下書きを編集し続けられるように覚えておく
   toast('下書きを保存しました 📝');
   updateDraftBadge();
 }
@@ -2975,7 +3013,8 @@ function loadDraft(id) {
   var drafts = getDrafts();
   var d = drafts.find(function(x){ return x._draftId===id; });
   if (!d) return;
-  editingId = null; // 下書きからの編集は新規扱い
+  editingId = null; // 公開記事としての編集ではない（公開保存＝新規追加になる）
+  editingDraftId = id; // どの下書きを編集中かは覚えておく（下書き保存の上書きに使う）
   setFormData(d);
   goView('new');
 }
@@ -2998,6 +3037,7 @@ async function pubDraft(id) {
 function delDraft(id) {
   var drafts = getDrafts().filter(function(x){ return x._draftId!==id; });
   saveDraftLS(drafts);
+  if (editingDraftId === id) editingDraftId = null;
   toast('下書きを削除しました');
   renderDrafts();
   updateDraftBadge();
@@ -3289,16 +3329,16 @@ function renderFmItems(items) {
       + '</div>';
   }).join('');
 }
-function addFmItem() {
+function addFmItem(icon, label, url) {
   var wrap = document.getElementById('fm-items');
   var idx = wrap.children.length;
   var row = document.createElement('div');
   row.className = 'birow';
   row.style.alignItems = 'flex-start';
   row.innerHTML =
-    '<input type="text" placeholder="絵文字" style="max-width:70px" data-fm="icon" data-idx="'+idx+'" />'
-    + '<input type="text" placeholder="表示文言" data-fm="label" data-idx="'+idx+'" />'
-    + '<input type="text" placeholder="リンク先URL" style="flex:2" data-fm="url" data-idx="'+idx+'" />'
+    '<input type="text" placeholder="絵文字（任意）" style="max-width:90px" value="'+(icon||'').replace(/"/g,'&quot;')+'" data-fm="icon" data-idx="'+idx+'" />'
+    + '<input type="text" placeholder="表示文言" value="'+(label||'').replace(/"/g,'&quot;')+'" data-fm="label" data-idx="'+idx+'" />'
+    + '<input type="text" placeholder="リンク先URL" style="flex:2" value="'+(url||'').replace(/"/g,'&quot;')+'" data-fm="url" data-idx="'+idx+'" />'
     + '<button class="bi-del" onclick="this.parentElement.remove()">✕</button>';
   wrap.appendChild(row);
 }
@@ -3318,6 +3358,122 @@ async function saveSF_floatingMenu() {
     });
     toast('フローティングメニュー設定を保存しました ✅');
   } catch(e) { toast('保存失敗: '+e.message,'error'); }
+}
+
+// ============================================================
+// 記事アナリティクス（閲覧数・滞在時間・流入元）
+// ============================================================
+var pageViewsRaw = [];
+
+async function loadPageViews() {
+  var snap = await window._getAll('pageViews');
+  pageViewsRaw = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+}
+
+function aggregateAnalytics() {
+  var byArticle = {}; // articleId -> { count, totalDwell, referrers:{label:count}, rows:[] }
+  pageViewsRaw.forEach(function(pv){
+    var id = pv.articleId;
+    if (!id) return;
+    if (!byArticle[id]) byArticle[id] = { count:0, totalDwell:0, referrers:{}, rows:[] };
+    var g = byArticle[id];
+    g.count++;
+    g.totalDwell += (pv.dwellSeconds || 0);
+    var label = pv.referrerLabel || '直接アクセス・ブックマーク等';
+    g.referrers[label] = (g.referrers[label]||0) + 1;
+    g.rows.push(pv);
+  });
+  return byArticle;
+}
+
+function topReferrer(referrers) {
+  var best = null, bestCount = 0;
+  Object.keys(referrers).forEach(function(k){ if (referrers[k] > bestCount) { best = k; bestCount = referrers[k]; } });
+  return best ? (best + '（' + bestCount + '）') : '—';
+}
+
+function fmtDwell(sec) {
+  sec = Math.round(sec || 0);
+  if (sec < 60) return sec + '秒';
+  return Math.floor(sec/60) + '分' + (sec%60) + '秒';
+}
+
+async function renderAnalyticsList() {
+  var tbody = document.getElementById('an-tbody');
+  var empty = document.getElementById('an-empty');
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--muted)">読み込み中…</td></tr>';
+  try { await loadPageViews(); } catch(e) { console.error('loadPageViews:', e); toast('アクセスデータの読み込みに失敗しました','error'); }
+
+  var agg = aggregateAnalytics();
+  var articleIds = Object.keys(agg);
+  document.getElementById('an-count').textContent = articleIds.length + '記事分のデータ';
+
+  if (!articleIds.length) { tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+
+  // 記事タイトルは articles 配列（既に読み込み済み）から引く。無ければpageViews側のarticleTitleを使う
+  var rows = articleIds.map(function(id){
+    var art = articles.find(function(a){ return a.id===id; });
+    var g = agg[id];
+    return {
+      id: id,
+      title: art ? art.title : (g.rows[0] && g.rows[0].articleTitle) || '（削除済みの記事）',
+      count: g.count,
+      avgDwell: g.count ? g.totalDwell / g.count : 0,
+      topRef: topReferrer(g.referrers)
+    };
+  }).sort(function(a,b){ return b.count - a.count; });
+
+  tbody.innerHTML = rows.map(function(r){
+    return '<tr style="cursor:pointer" onclick="openArticleAnalytics(\''+r.id+'\')">'
+      + '<td style="font-weight:600;font-size:.83rem">'+r.title+'</td>'
+      + '<td style="font-size:.83rem">'+r.count+'</td>'
+      + '<td style="font-size:.83rem">'+fmtDwell(r.avgDwell)+'</td>'
+      + '<td style="font-size:.78rem;color:var(--muted)">'+r.topRef+'</td>'
+      + '</tr>';
+  }).join('');
+}
+
+function openArticleAnalytics(articleId) {
+  var agg = aggregateAnalytics();
+  var g = agg[articleId];
+  if (!g) return;
+  var art = articles.find(function(a){ return a.id===articleId; });
+  var title = art ? art.title : (g.rows[0] && g.rows[0].articleTitle) || '（削除済みの記事）';
+
+  document.getElementById('analytics-list-panel').style.display = 'none';
+  document.getElementById('analytics-detail-panel').style.display = 'block';
+  document.getElementById('analytics-detail-title').textContent = title;
+
+  var refRows = Object.keys(g.referrers).sort(function(a,b){ return g.referrers[b]-g.referrers[a]; })
+    .map(function(k){ return '<tr><td style="font-size:.83rem">'+k+'</td><td style="font-size:.83rem">'+g.referrers[k]+'</td></tr>'; }).join('');
+
+  var recent = g.rows.slice().sort(function(a,b){
+    var ta=(a.startedAt&&a.startedAt.toDate)?a.startedAt.toDate():new Date(0);
+    var tb=(b.startedAt&&b.startedAt.toDate)?b.startedAt.toDate():new Date(0);
+    return tb-ta;
+  }).slice(0,30).map(function(pv){
+    return '<tr>'
+      + '<td style="font-size:.78rem;white-space:nowrap">'+fmtDate(pv.startedAt)+'</td>'
+      + '<td style="font-size:.78rem">'+(pv.referrerLabel||'—')+'</td>'
+      + '<td style="font-size:.78rem">'+fmtDwell(pv.dwellSeconds)+'</td>'
+      + '</tr>';
+  }).join('');
+
+  document.getElementById('analytics-detail-body').innerHTML =
+    '<div class="stats" style="margin-bottom:1.5rem">'
+    + '<div class="scard"><div class="slabel">総閲覧数</div><div class="sval">'+g.count+'</div></div>'
+    + '<div class="scard"><div class="slabel">平均滞在時間</div><div class="sval" style="font-size:1.3rem">'+fmtDwell(g.count?g.totalDwell/g.count:0)+'</div></div>'
+    + '</div>'
+    + '<div style="font-size:.9rem;font-weight:700;margin-bottom:.6rem">流入元の内訳</div>'
+    + '<table class="tbl" style="margin-bottom:1.5rem"><thead><tr><th>流入元</th><th>件数</th></tr></thead><tbody>'+refRows+'</tbody></table>'
+    + '<div style="font-size:.9rem;font-weight:700;margin-bottom:.6rem">最近のアクセス（最大30件）</div>'
+    + '<table class="tbl"><thead><tr><th>日時</th><th>流入元</th><th>滞在時間</th></tr></thead><tbody>'+recent+'</tbody></table>';
+}
+
+function closeAnalyticsDetail() {
+  document.getElementById('analytics-detail-panel').style.display = 'none';
+  document.getElementById('analytics-list-panel').style.display = 'block';
 }
 
 // ============================================================
