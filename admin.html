@@ -1087,6 +1087,12 @@
 
       <!-- 記事アナリティクス -->
       <div id="v-analytics" class="view">
+        <div class="stats" id="an-site-stats" style="margin-bottom:1.5rem">
+          <div class="scard"><div class="slabel">サイト総閲覧数</div><div class="sval" id="an-site-total">—</div><div class="ssub">全記事の合計</div></div>
+          <div class="scard"><div class="slabel">アクセスのあった記事数</div><div class="sval" id="an-site-articles">—</div><div class="ssub">1回以上読まれた記事</div></div>
+          <div class="scard"><div class="slabel">サイト平均滞在時間</div><div class="sval" id="an-site-dwell" style="font-size:1.5rem">—</div><div class="ssub">全記事の平均</div></div>
+          <div class="scard"><div class="slabel">主な流入元（全体）</div><div class="sval" id="an-site-topref" style="font-size:1.1rem">—</div><div class="ssub">最も多い経路</div></div>
+        </div>
         <div class="panel" id="analytics-list-panel">
           <div class="phead">
             <span class="ptitle">記事アナリティクス</span>
@@ -1395,7 +1401,7 @@ async function goView(key) {
   if (key==='spots')     { closeSpotForm(); await loadSpots(); renderSpotsAdminList(); }
   if (key==='breaking')  loadBreaking();
   if (key==='sitefeatures') loadSiteFeatureSettings();
-  if (key==='analytics') { document.getElementById('analytics-detail-panel').style.display='none'; document.getElementById('analytics-list-panel').style.display='block'; renderAnalyticsList(); }
+  if (key==='analytics') { document.getElementById('analytics-detail-panel').style.display='none'; document.getElementById('an-site-stats').style.display=''; document.getElementById('analytics-list-panel').style.display='block'; renderAnalyticsList(); }
   if (key==='feedbacklist') renderFeedbackList();
   closeSB();
   window.scrollTo(0,0);
@@ -3009,14 +3015,24 @@ function renderDrafts() {
   }).join('');
 }
 
-function loadDraft(id) {
+async function loadDraft(id) {
   var drafts = getDrafts();
   var d = drafts.find(function(x){ return x._draftId===id; });
   if (!d) return;
   editingId = null; // 公開記事としての編集ではない（公開保存＝新規追加になる）
   editingDraftId = id; // どの下書きを編集中かは覚えておく（下書き保存の上書きに使う）
+  await Promise.all([loadSeries(), loadSpots(), loadAuthors()]); // 連載・スポット・執筆者のプルダウンを最新化
+  populateAuthorDatalist();
   setFormData(d);
-  goView('new');
+  // goView('new') は内部で resetForm() を呼んでフォームを空にしてしまうため使わない。
+  // ここでは画面の切り替えだけを行い、上でセットしたフォーム内容を維持する。
+  document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('on'); });
+  document.getElementById('v-form').classList.add('on');
+  document.getElementById('page-title').textContent = '📝 下書きを編集';
+  document.getElementById('form-title').textContent = '📝 下書きを編集';
+  document.querySelectorAll('.sb-btn[data-v]').forEach(function(b){ b.classList.toggle('on', b.dataset.v==='drafts'); });
+  closeSB();
+  window.scrollTo(0,0);
 }
 
 async function pubDraft(id) {
@@ -3408,6 +3424,20 @@ async function renderAnalyticsList() {
   var articleIds = Object.keys(agg);
   document.getElementById('an-count').textContent = articleIds.length + '記事分のデータ';
 
+  // サイト全体のサマリー
+  var siteTotal = pageViewsRaw.length;
+  var siteDwellTotal = 0;
+  var siteReferrers = {};
+  pageViewsRaw.forEach(function(pv){
+    siteDwellTotal += (pv.dwellSeconds||0);
+    var label = pv.referrerLabel || '直接アクセス・ブックマーク等';
+    siteReferrers[label] = (siteReferrers[label]||0) + 1;
+  });
+  document.getElementById('an-site-total').textContent = siteTotal;
+  document.getElementById('an-site-articles').textContent = articleIds.length;
+  document.getElementById('an-site-dwell').textContent = fmtDwell(siteTotal ? siteDwellTotal/siteTotal : 0);
+  document.getElementById('an-site-topref').textContent = topReferrer(siteReferrers);
+
   if (!articleIds.length) { tbody.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display = 'none';
 
@@ -3441,6 +3471,7 @@ function openArticleAnalytics(articleId) {
   var art = articles.find(function(a){ return a.id===articleId; });
   var title = art ? art.title : (g.rows[0] && g.rows[0].articleTitle) || '（削除済みの記事）';
 
+  document.getElementById('an-site-stats').style.display = 'none';
   document.getElementById('analytics-list-panel').style.display = 'none';
   document.getElementById('analytics-detail-panel').style.display = 'block';
   document.getElementById('analytics-detail-title').textContent = title;
@@ -3473,6 +3504,7 @@ function openArticleAnalytics(articleId) {
 
 function closeAnalyticsDetail() {
   document.getElementById('analytics-detail-panel').style.display = 'none';
+  document.getElementById('an-site-stats').style.display = '';
   document.getElementById('analytics-list-panel').style.display = 'block';
 }
 
