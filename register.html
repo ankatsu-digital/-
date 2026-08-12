@@ -191,6 +191,18 @@
       </div>
     </div>
 
+    <!-- ログイン済みの場合：自動遷移はせず、手動リンクのみ表示 -->
+    <div class="fcard" id="pg-loggedin" style="display:none">
+      <div class="fhead"><h2 id="li-done-title">ログイン済みです</h2><p>続きは管理画面（マイページ）から行えます</p></div>
+      <div class="fbody">
+        <p style="font-size:.88rem;color:var(--muted);line-height:1.85;margin-bottom:1.25rem" id="li-done-desc">
+          審査状況の確認、記事の投稿、プロフィールの編集は管理画面から行えます。
+        </p>
+        <a href="admin.html" class="submit-btn" style="display:flex;text-decoration:none;margin-bottom:.75rem">🧑‍💼 管理画面（マイページ）を開く</a>
+        <button class="link-btn" onclick="doLogout()">ログアウトする</button>
+      </div>
+    </div>
+
   </main>
 
   <footer>
@@ -262,7 +274,11 @@
         name:name, from_email:email, org:org, reason:reason,
         submitted_at:submittedAtStr, admin_url:ADMIN_URL
       });
-      // ログイン状態になっているので、そのままマイページへ（onAuthStateChangedが処理）
+      // ログイン状態にはなるが自動遷移はしない。initAuth側で「ログイン済み」画面を出す。
+      _customLoggedInText = {
+        title: '📝 申請を受け付けました',
+        desc: '審査状況の確認や、承認後の記事投稿・プロフィール編集は管理画面から行えます。'
+      };
     }catch(e){
       console.error(e);
       alert('申請に失敗しました: ' + (e.message||e));
@@ -295,14 +311,23 @@
   // ============================================================
   // 認証状態監視
   // ============================================================
+  var _customLoggedInText = null; // doApply()成功直後だけ、専用メッセージを出すために使う
+
   function initAuth(){
     window._onAuth(function(user){
       if(user){
-        // ログイン済みなら、以降の操作（審査状況の確認・回答・投稿・プロフィール編集）は
-        // すべて admin.html 側で行う（そちらがロールに応じたマイページになっている）
-        location.href = 'admin.html';
+        // 自動でadmin.htmlへ飛ばすと、accountsドキュメント作成の反映タイミングなどで
+        // 不具合が出ることがあったため、自動遷移はせず手動リンクのみ表示する。
+        document.getElementById('pg-guest').style.display='none';
+        var title = (_customLoggedInText && _customLoggedInText.title) || 'ログイン済みです';
+        var desc  = (_customLoggedInText && _customLoggedInText.desc)  || '審査状況の確認、記事の投稿、プロフィールの編集は管理画面から行えます。';
+        document.getElementById('li-done-title').textContent = title;
+        document.getElementById('li-done-desc').textContent = desc;
+        document.getElementById('pg-loggedin').style.display='block';
       } else {
         document.getElementById('pg-guest').style.display='block';
+        document.getElementById('pg-loggedin').style.display='none';
+        _customLoggedInText = null;
       }
     });
   }
