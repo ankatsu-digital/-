@@ -634,6 +634,14 @@
                 <label class="flabel">所属・活動内容</label>
                 <input id="an-org" type="text" class="finput" placeholder="〇〇商店街振興会 など" />
               </div>
+              <div class="frow">
+                <label class="flabel">権限段階</label>
+                <select id="an-role" class="fselect">
+                  <option value="contributor">投稿者</option>
+                  <option value="editor">編集部員</option>
+                </select>
+                <span class="fhint">投稿者＝自分の記事のみ。編集部員＝記事全件・お問い合わせ・地図スポット等も扱えます</span>
+              </div>
               <div class="frow full">
                 <label class="flabel">初期パスワード <span class="req">*</span></label>
                 <div style="display:flex;gap:.5rem">
@@ -1331,10 +1339,20 @@ var VTITLES = {
 
 // 承認済み投稿者が使えるビュー（記事の投稿・自分の記事の編集・プロフィール編集）
 var CONTRIBUTOR_APPROVED_VIEWS = ['authors', 'new', 'edit', 'articles'];
+// 編集部員が使えるビュー（投稿者の範囲＋記事全件管理・お問い合わせ・地図スポット・連載特集・アナリティクス・フィードバック）
+// 「投稿者アカウント」の承認/追加確認/権限設定や、サイト機能設定・速報バー・JSON入出力は管理者専用のまま。
+var EDITOR_APPROVED_VIEWS = CONTRIBUTOR_APPROVED_VIEWS.concat(['contacts','spots','series','analytics','feedbacklist']);
 var _myPermissions = []; // ログイン中の投稿者に個別付与された権限（例: ['contacts.view']）
 
 function canAccessView(key) {
   if (_role === 'admin') return true;
+  if (_role === 'editor') {
+    if (key === 'dashboard') return true;
+    if (!_myAccount || _myAccount.status !== 'approved') return false;
+    if (EDITOR_APPROVED_VIEWS.indexOf(key) >= 0) return true;
+    var permE = VIEW_PERMISSION_MAP[key];
+    return permE ? _myPermissions.indexOf(permE) >= 0 : false;
+  }
   if (_role === 'contributor') {
     if (key === 'dashboard') return true; // 審査状況の確認・質問への回答は誰でも見られる
     if (!_myAccount || _myAccount.status !== 'approved') return false; // 未承認は他のページに入れない
@@ -1395,7 +1413,7 @@ async function goView(key) {
   if (key==='drafts')    renderDrafts();
   if (key==='series')    { closeSeriesForm(); await loadSeries(); renderSeriesAdminList(); }
   if (key==='authors')   {
-    if (_role === 'admin') { closeAuthorForm(); renderAuthorsAdminList(); }
+    if (_role === 'admin' || _role === 'editor') { closeAuthorForm(); renderAuthorsAdminList(); }
     else { renderContributorAuthorProfile(); }
   }
   if (key==='spots')     { closeSpotForm(); await loadSpots(); renderSpotsAdminList(); }
@@ -1441,9 +1459,10 @@ function initLogin() {
 // admins/{uid} が存在すれば管理者。accounts/{uid} が存在すれば投稿者
 // （審査状況に関わらずログインはできる。実際に使える機能は状態次第）。
 // どちらの記録もなければ管理画面へのアクセス権なしとして弾く。
+// role: 'admin' | 'editor' | 'contributor' | null
 // ============================================================
-var _role = null;       // 'admin' | 'contributor' | null
-var _myAccount = null;  // 投稿者ロールの場合、自分のaccountsドキュメント
+var _role = null;
+var _myAccount = null;  // 投稿者/編集部員ロールの場合、自分のaccountsドキュメント
 
 async function detectRole(uid) {
   try {
@@ -1452,10 +1471,15 @@ async function detectRole(uid) {
   } catch (e) { /* 管理者でなければ読めないのでエラーは無視 */ }
   try {
     var accSnap = await window._getDoc('accounts', uid);
-    if (accSnap.exists()) { _myAccount = Object.assign({ id: uid }, accSnap.data()); return 'contributor'; }
+    if (accSnap.exists()) {
+      _myAccount = Object.assign({ id: uid }, accSnap.data());
+      return _myAccount.role === 'editor' ? 'editor' : 'contributor';
+    }
   } catch (e) { console.error('detectRole (accounts):', e); }
   return null;
 }
+
+var ROLE_LABEL = { admin:'管理者', editor:'編集部員', contributor:'投稿者' };
 
 function initAuth() {
   window._onAuth(async function (user) {
@@ -1469,7 +1493,7 @@ function initAuth() {
       _role = role;
       document.getElementById('pg-login').style.display = 'none';
       document.getElementById('pg-admin').classList.add('on');
-      document.getElementById('sb-email').textContent = user.email + (role === 'contributor' ? '（投稿者）' : '');
+      document.getElementById('sb-email').textContent = user.email + (role === 'admin' ? '' : '（'+ROLE_LABEL[role]+'）');
       if (role === 'admin') {
         loadAll();
       } else {
@@ -1938,7 +1962,7 @@ function renderArticles(filter) {
   filter = filter || '';
   var base = articles;
   var myUid = (window._auth && window._auth.currentUser) ? window._auth.currentUser.uid : null;
-  var canSeeAll = _role === 'admin' || _myPermissions.indexOf('articles.edit') >= 0;
+  var canSeeAll = _role === 'admin' || _role === 'editor' || _myPermissions.indexOf('articles.edit') >= 0;
   if (_role === 'contributor' && !canSeeAll) {
     base = base.filter(function(a){ return a.authorUid === myUid; });
   }
@@ -1952,8 +1976,8 @@ function renderArticles(filter) {
   tbody.innerHTML = list.map(function(a){
     var scheduleBadge = isArticleScheduled(a) ? '<span class="tag tag-y" title="'+fmtDate(a.createdAt)+'に公開予定">⏰予約中</span>' : '';
     var isOwn = myUid && a.authorUid === myUid;
-    var canEdit   = _role === 'admin' || _myPermissions.indexOf('articles.edit')   >= 0 || isOwn;
-    var canDelete = _role === 'admin' || _myPermissions.indexOf('articles.delete') >= 0 || isOwn;
+    var canEdit   = _role === 'admin' || _role === 'editor' || _myPermissions.indexOf('articles.edit')   >= 0 || isOwn;
+    var canDelete = _role === 'admin' || _role === 'editor' || _myPermissions.indexOf('articles.delete') >= 0 || isOwn;
     var acts = (canEdit   ? '<button class="btn btn-o btn-sm" onclick="startEdit(\''+a.id+'\')">✏️</button>' : '')
              + (canDelete ? '<button class="btn btn-r btn-sm" onclick="askDel(\''+a.id+'\',\''+a.title.replace(/'/g,"\\'")+'\')">🗑️</button>' : '');
     return '<tr>'
@@ -2321,6 +2345,17 @@ async function savePermissions(id) {
   } catch(e) { toast('権限の保存に失敗: '+e.message, 'error'); }
 }
 
+async function changeAccountRole(id) {
+  var sel = document.getElementById('acc-role-select');
+  var role = sel ? sel.value : 'contributor';
+  try {
+    await window._updateDoc('accounts', id, { role: role, updatedAt: window._ts() });
+    toast('役職を保存しました ✅（' + (role==='editor'?'編集部員':'投稿者') + '）');
+    await loadAccounts();
+    openAccountDetail(id);
+  } catch(e) { toast('役職の保存に失敗: '+e.message, 'error'); }
+}
+
 function registerUrl() { return location.origin + location.pathname.replace('admin.html', 'register.html'); }
 
 // ---- 投稿者ロール用：ダッシュボード（審査状況の確認・追加確認への回答・投稿導線） ----
@@ -2354,9 +2389,16 @@ function renderContributorDashboard() {
     body += '<p style="color:var(--muted);font-size:.9rem;line-height:1.9;margin-bottom:1.25rem">記事の投稿や、ご自身の執筆者プロフィールの編集ができます。</p>'
       + '<div style="display:flex;gap:.65rem;flex-wrap:wrap">'
       + '<button class="btn btn-g" onclick="goView(\'new\')">📝 新しい記事を投稿する</button>'
-      + '<button class="btn btn-o" onclick="goView(\'articles\')">📰 自分の記事一覧</button>'
-      + '<button class="btn btn-o" onclick="goView(\'authors\')">✍️ プロフィールを編集</button>'
-      + '</div>';
+      + '<button class="btn btn-o" onclick="goView(\'articles\')">📰 記事一覧</button>'
+      + '<button class="btn btn-o" onclick="goView(\'authors\')">✍️ 執筆者紹介</button>';
+    if (_role === 'editor') {
+      body += '<button class="btn btn-o" onclick="goView(\'contacts\')">✉️ お問い合わせ</button>'
+        + '<button class="btn btn-o" onclick="goView(\'spots\')">🗺️ 地図スポット</button>'
+        + '<button class="btn btn-o" onclick="goView(\'series\')">📚 連載・特集</button>'
+        + '<button class="btn btn-o" onclick="goView(\'analytics\')">📊 記事アナリティクス</button>'
+        + '<button class="btn btn-o" onclick="goView(\'feedbacklist\')">💬 記事フィードバック</button>';
+    }
+    body += '</div>';
   }
 
   body += '</div></div>';
@@ -2440,14 +2482,16 @@ async function renderAccountsList() {
   document.getElementById('acc-count').textContent = '全' + accounts.length + '件';
   var wrap = document.getElementById('acc-list');
   if (!accounts.length) { wrap.innerHTML = '<div class="etbl">投稿者アカウント申請はまだありません。</div>'; return; }
-  wrap.innerHTML = '<table class="tbl"><thead><tr><th>お名前</th><th>メール</th><th>所属</th><th>状態</th><th>申請日</th><th style="width:90px"></th></tr></thead><tbody>'
+  wrap.innerHTML = '<table class="tbl"><thead><tr><th>お名前</th><th>メール</th><th>所属</th><th>状態</th><th>役職</th><th>申請日</th><th style="width:90px"></th></tr></thead><tbody>'
     + accounts.map(function(a){
         var st = ACC_STATUS_LABEL[a.status] || ['-',''];
+        var roleLabel = a.role === 'editor' ? '編集部員' : '投稿者';
         return '<tr style="cursor:pointer" onclick="openAccountDetail(\''+a.id+'\')">'
           +'<td style="font-weight:600;font-size:.83rem">'+(a.name||'—')+'</td>'
           +'<td style="font-size:.78rem">'+(a.email||'—')+'</td>'
           +'<td style="font-size:.78rem;color:var(--muted)">'+(a.org||'—')+'</td>'
           +'<td><span class="tag '+st[1]+'" style="'+(st[1]?'':'background:#f3f3f3;color:var(--muted)')+'">'+st[0]+'</span></td>'
+          +'<td style="font-size:.78rem;color:var(--muted)">'+roleLabel+'</td>'
           +'<td style="font-size:.76rem;white-space:nowrap">'+fmtDate(a.createdAt)+'</td>'
           +'<td><button class="btn btn-o btn-sm">詳細</button></td>'
           +'</tr>';
@@ -2484,6 +2528,15 @@ function openAccountDetail(id) {
     + '</table>'
     + '<div style="font-size:.76rem;color:var(--light);margin-bottom:.3rem">継続投稿を希望する理由</div>'
     + '<div style="background:var(--bg);border-radius:6px;padding:.9rem;white-space:pre-wrap;font-size:.85rem;margin-bottom:1.5rem">'+(a.reason||'—')+'</div>'
+    + '<div style="font-size:.85rem;font-weight:700;margin-bottom:.6rem">🏷️ 権限段階</div>'
+    + '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:1rem 1.1rem;margin-bottom:1.5rem">'
+    + '<div style="font-size:.78rem;color:var(--light);margin-bottom:.65rem">投稿者＝自分の記事・自分のプロフィールだけ。編集部員＝記事全件・お問い合わせ・地図スポット・連載特集・アナリティクス・フィードバックも扱えます。</div>'
+    + '<select id="acc-role-select" class="fselect" style="max-width:220px;margin-bottom:.6rem">'
+    + '<option value="contributor"'+(a.role!=='editor'?' selected':'')+'>投稿者</option>'
+    + '<option value="editor"'+(a.role==='editor'?' selected':'')+'>編集部員</option>'
+    + '</select>'
+    + '<div><button class="btn btn-g btn-sm" onclick="changeAccountRole(\''+id+'\')">💾 役職を保存</button></div>'
+    + '</div>'
     + '<div style="font-size:.85rem;font-weight:700;margin-bottom:.6rem">❓ 追加確認のやりとり</div>'
     + qHtml
     + (a.status==='rejected' && a.rejectReason ? '<div style="margin-top:1rem;font-size:.83rem;color:var(--muted)">見送り理由: '+a.rejectReason+'</div>' : '')
@@ -2518,6 +2571,7 @@ function goAccountNew() {
   document.getElementById('an-name').value = '';
   document.getElementById('an-email').value = '';
   document.getElementById('an-org').value = '';
+  document.getElementById('an-role').value = 'contributor';
   document.getElementById('an-pw').value = '';
 }
 
@@ -2601,6 +2655,7 @@ async function createContributorAccount() {
   var name  = document.getElementById('an-name').value.trim();
   var email = document.getElementById('an-email').value.trim();
   var org   = document.getElementById('an-org').value.trim();
+  var role  = document.getElementById('an-role').value === 'editor' ? 'editor' : 'contributor';
   var pw    = document.getElementById('an-pw').value;
 
   if (!name)  { toast('お名前を入力してください', 'warn'); return; }
@@ -2613,7 +2668,7 @@ async function createContributorAccount() {
     var uid = await window._adminCreateContributor(email, pw);
 
     await window._setDoc('accounts', uid, {
-      name: name, email: email, org: org,
+      name: name, email: email, org: org, role: role,
       reason: '（管理者が直接作成したアカウントです）',
       status: 'approved', permissions: [], questions: [],
       createdByAdmin: true,
@@ -2882,7 +2937,7 @@ function startEdit(id) {
   var a = articles.find(function(x){ return x.id===id; });
   if (!a) return;
   var myUid = (window._auth && window._auth.currentUser) ? window._auth.currentUser.uid : null;
-  var canEdit = _role === 'admin' || _myPermissions.indexOf('articles.edit') >= 0 || (myUid && a.authorUid === myUid);
+  var canEdit = _role === 'admin' || _role === 'editor' || _myPermissions.indexOf('articles.edit') >= 0 || (myUid && a.authorUid === myUid);
   if (!canEdit) { toast('この記事を編集する権限がありません', 'error'); return; }
   editingId = id;
   editingDraftId = null; // 公開済み記事の編集であり下書きの編集ではない
@@ -2897,7 +2952,7 @@ function askDel(id, title) {
   var a = articles.find(function(x){ return x.id===id; });
   var myUid = (window._auth && window._auth.currentUser) ? window._auth.currentUser.uid : null;
   var isOwn = a && myUid && a.authorUid === myUid;
-  var canDelete = _role === 'admin' || _myPermissions.indexOf('articles.delete') >= 0 || isOwn;
+  var canDelete = _role === 'admin' || _role === 'editor' || _myPermissions.indexOf('articles.delete') >= 0 || isOwn;
   if (!canDelete) { toast('この記事を削除する権限がありません', 'error'); return; }
 
   function doDelete(){
@@ -2949,7 +3004,7 @@ async function openCM(id) {
     +'</table>'
     +'<div style="background:var(--bg);border-radius:6px;padding:.9rem;white-space:pre-wrap;font-size:.85rem;line-height:1.8">'+(c.message||'')+'</div>';
   document.getElementById('contact-modal').classList.add('on');
-  document.getElementById('cm-del').style.display = (_role==='admin' || _myPermissions.indexOf('contacts.delete')>=0) ? '' : 'none';
+  document.getElementById('cm-del').style.display = (_role==='admin' || _role==='editor' || _myPermissions.indexOf('contacts.delete')>=0) ? '' : 'none';
   if (!c.read) {
     try { await window._updateDoc('contacts', id, {read:true}); c.read=true; updateUnread(); } catch(e){}
   }
