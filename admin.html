@@ -354,6 +354,7 @@
       <button class="sb-btn"     data-v="spots">🗺️ 地図スポット</button>
       <button class="sb-btn"     data-v="breaking">📡 速報バー設定</button>
       <button class="sb-btn"     data-v="sitefeatures">📣 サイト機能設定</button>
+      <button class="sb-btn"     data-v="specialpages">🎌 特設ページ</button>
       <button class="sb-btn"     data-v="analytics">📊 記事アナリティクス</button>
       <button class="sb-btn"     data-v="feedbacklist">💬 記事フィードバック</button>
       <button class="sb-btn"     data-v="json">📦 JSON入出力</button>
@@ -1124,6 +1125,98 @@
         </div>
       </div>
 
+      <!-- 特設ページ -->
+      <div id="v-specialpages" class="view">
+        <div class="panel" id="specialpages-list-panel">
+          <div class="phead">
+            <span class="ptitle">特設ページ一覧</span>
+            <button class="btn btn-g btn-sm" onclick="openTemplatePicker()">＋ 新規作成</button>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead><tr><th>タイトル</th><th>スラッグ</th><th>状態</th><th>更新日</th><th style="width:140px">操作</th></tr></thead>
+              <tbody id="sp-tbody"></tbody>
+            </table>
+            <div id="sp-empty" class="etbl" style="display:none">特設ページはまだありません。「＋ 新規作成」から作りましょう。</div>
+          </div>
+        </div>
+
+        <!-- エディタ -->
+        <div id="specialpage-editor-panel" style="display:none">
+
+          <div class="fcard" style="margin-bottom:1.5rem">
+            <div class="fhead">
+              <button class="btn btn-o btn-sm" onclick="closeSpecialPageEditor()">← 一覧へ</button>
+              <span id="sp-editor-title" style="font-weight:700;font-size:.95rem">特設ページを編集</span>
+            </div>
+            <div class="fbody">
+              <div class="fgrid">
+                <div class="frow full">
+                  <label class="flabel">ページタイトル <span class="req">*</span></label>
+                  <input id="sp-title" type="text" class="finput" placeholder="2027年 洲本市議選 特集" />
+                </div>
+                <div class="frow">
+                  <label class="flabel">スラッグ（URL用） <span class="req">*</span></label>
+                  <input id="sp-slug" type="text" class="finput" placeholder="senkyo2027" />
+                  <span class="fhint">公開URL: index.html#special/スラッグ</span>
+                </div>
+                <div class="frow">
+                  <label class="flabel">テーマカラー</label>
+                  <input id="sp-color" type="color" class="finput" value="#2d6a4f" style="height:42px;padding:.3rem" />
+                </div>
+                <div class="frow full">
+                  <label class="flabel">説明文（一覧・SNSシェア用、任意）</label>
+                  <input id="sp-desc" type="text" class="finput" placeholder="このページの簡単な説明" />
+                </div>
+                <div class="frow">
+                  <label class="flabel">公開状態</label>
+                  <select id="sp-status" class="fselect">
+                    <option value="draft">下書き（非公開）</option>
+                    <option value="published">公開</option>
+                  </select>
+                </div>
+                <div class="frow"></div>
+                <div class="frow">
+                  <label class="flabel">公開開始日時（空欄なら即時）</label>
+                  <input id="sp-publishat" type="datetime-local" class="finput" />
+                </div>
+                <div class="frow">
+                  <label class="flabel">公開終了日時（空欄なら無期限）</label>
+                  <input id="sp-unpublishat" type="datetime-local" class="finput" />
+                </div>
+              </div>
+              <div class="factions">
+                <button class="btn btn-o" onclick="previewSpecialPage()">👁️ プレビュー</button>
+                <button class="btn btn-g" id="sp-save-btn" onclick="saveSpecialPage()">💾 保存する</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ブロック一覧 -->
+          <div class="fcard">
+            <div class="fhead"><span style="font-weight:700;font-size:.95rem">ブロック構成</span></div>
+            <div class="fbody">
+              <div id="sp-blocks-list" style="display:flex;flex-direction:column;gap:1rem"></div>
+              <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem">
+                <div class="flabel" style="margin-bottom:.5rem">＋ ブロックを追加</div>
+                <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+                  <button class="btn btn-o btn-sm" onclick="addSpecialBlock('hero')">🖼️ ヒーロー</button>
+                  <button class="btn btn-o btn-sm" onclick="addSpecialBlock('text')">📝 テキスト</button>
+                  <button class="btn btn-o btn-sm" onclick="addSpecialBlock('image')">🖼 画像</button>
+                  <button class="btn btn-o btn-sm" onclick="addSpecialBlock('button')">🔘 ボタン</button>
+                  <button class="btn btn-o btn-sm" onclick="addSpecialBlock('grid')">🗂️ グリッド</button>
+                  <button class="btn btn-o btn-sm" onclick="addSpecialBlock('table')">📊 表</button>
+                  <button class="btn btn-o btn-sm" onclick="addSpecialBlock('countdown')">⏱️ カウントダウン</button>
+                  <button class="btn btn-o btn-sm" onclick="addSpecialBlock('related')">📰 関連記事</button>
+                  <button class="btn btn-o btn-sm" onclick="addSpecialBlock('html')">🧩 HTML/JS</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
       <!-- 記事フィードバック一覧 -->
       <div id="v-feedbacklist" class="view">
         <div class="panel">
@@ -1241,6 +1334,18 @@
   </div>
 </div>
 
+<!-- 特設ページ テンプレート選択モーダル -->
+<div class="mback" id="template-picker-modal">
+  <div class="mbox" style="max-width:640px">
+    <h3>🎌 特設ページを新規作成</h3>
+    <p style="margin-bottom:1rem">テンプレートを選ぶと、ブロックが最初から組まれた状態で始められます。あとから自由に編集・追加・削除できます。</p>
+    <div id="template-picker-list" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem"></div>
+    <div class="macts">
+      <button class="btn btn-o" onclick="closeTemplatePicker()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
 <!-- パスワード直接変更モーダル（メールを介さない） -->
 <div class="mback" id="pwchange-modal">
   <div class="mbox" style="max-width:460px">
@@ -1334,14 +1439,15 @@ var VTITLES = {
   authors:'✍️ 執筆者紹介',
   spots:'🗺️ 地図スポット',
   breaking:'📡 速報バー設定', json:'📦 JSON入出力',
-  sitefeatures:'📣 サイト機能設定', feedbacklist:'💬 記事フィードバック', analytics:'📊 記事アナリティクス'
+  sitefeatures:'📣 サイト機能設定', feedbacklist:'💬 記事フィードバック', analytics:'📊 記事アナリティクス',
+  specialpages:'🎌 特設ページ'
 };
 
 // 承認済み投稿者が使えるビュー（記事の投稿・自分の記事の編集・プロフィール編集）
 var CONTRIBUTOR_APPROVED_VIEWS = ['authors', 'new', 'edit', 'articles'];
 // 編集部員が使えるビュー（投稿者の範囲＋記事全件管理・お問い合わせ・地図スポット・連載特集・アナリティクス・フィードバック）
 // 「投稿者アカウント」の承認/追加確認/権限設定や、サイト機能設定・速報バー・JSON入出力は管理者専用のまま。
-var EDITOR_APPROVED_VIEWS = CONTRIBUTOR_APPROVED_VIEWS.concat(['contacts','spots','series','analytics','feedbacklist']);
+var EDITOR_APPROVED_VIEWS = CONTRIBUTOR_APPROVED_VIEWS.concat(['contacts','spots','series','analytics','feedbacklist','specialpages']);
 var _myPermissions = []; // ログイン中の投稿者に個別付与された権限（例: ['contacts.view']）
 
 function canAccessView(key) {
@@ -1420,6 +1526,7 @@ async function goView(key) {
   if (key==='breaking')  loadBreaking();
   if (key==='sitefeatures') loadSiteFeatureSettings();
   if (key==='analytics') { document.getElementById('analytics-detail-panel').style.display='none'; document.getElementById('an-site-stats').style.display=''; document.getElementById('analytics-list-panel').style.display='block'; renderAnalyticsList(); }
+  if (key==='specialpages') { closeSpecialPageEditor(); await loadArticles(); renderSpecialPagesList(); }
   if (key==='feedbacklist') renderFeedbackList();
   closeSB();
   window.scrollTo(0,0);
@@ -2396,7 +2503,8 @@ function renderContributorDashboard() {
         + '<button class="btn btn-o" onclick="goView(\'spots\')">🗺️ 地図スポット</button>'
         + '<button class="btn btn-o" onclick="goView(\'series\')">📚 連載・特集</button>'
         + '<button class="btn btn-o" onclick="goView(\'analytics\')">📊 記事アナリティクス</button>'
-        + '<button class="btn btn-o" onclick="goView(\'feedbacklist\')">💬 記事フィードバック</button>';
+        + '<button class="btn btn-o" onclick="goView(\'feedbacklist\')">💬 記事フィードバック</button>'
+        + '<button class="btn btn-o" onclick="goView(\'specialpages\')">🎌 特設ページ</button>';
     }
     body += '</div>';
   }
@@ -3561,6 +3669,354 @@ function closeAnalyticsDetail() {
   document.getElementById('analytics-detail-panel').style.display = 'none';
   document.getElementById('an-site-stats').style.display = '';
   document.getElementById('analytics-list-panel').style.display = 'block';
+}
+
+// ============================================================
+// 特設ページ（ブロックエディタで作る特集ページ）
+// ============================================================
+var specialPages = [];
+var spCurrentId = null;   // 編集中の特設ページの保存済みID（新規作成中はnull）
+var spCurrentBlocks = [];
+
+var SP_BLOCK_LABEL = {
+  hero:'🖼️ ヒーロー', text:'📝 テキスト', image:'🖼 画像', button:'🔘 ボタン',
+  grid:'🗂️ グリッド', table:'📊 表', countdown:'⏱️ カウントダウン',
+  related:'📰 関連記事', html:'🧩 HTML/JS'
+};
+
+var SP_TEMPLATES = [
+  { key:'blank', label:'空のページ', desc:'ブロックなしからはじめる', blocks: [] },
+  { key:'election', label:'🗳️ 選挙特集', desc:'候補者一覧・関連記事つき', blocks: [
+      { type:'hero', heading:'2027年 洲本市議会議員選挙', subheading:'投開票日：〇月〇日（〇）', image:'' },
+      { type:'countdown', label:'投票日まで', target:'' },
+      { type:'text', heading:'この選挙について', body:'<p>ここに選挙の概要を書いてください。</p>' },
+      { type:'grid', heading:'候補者一覧', items:[ {title:'候補者名', image:'', desc:'経歴・政策など'} ] },
+      { type:'related', heading:'関連記事', articleIds:[] }
+    ]},
+  { key:'event', label:'🎪 イベント告知', desc:'カウントダウン・スケジュール表つき', blocks: [
+      { type:'hero', heading:'イベント名をここに', subheading:'〇月〇日（〇）開催', image:'' },
+      { type:'countdown', label:'開催まで', target:'' },
+      { type:'text', heading:'イベント概要', body:'<p>ここに概要を書いてください。</p>' },
+      { type:'table', heading:'タイムスケジュール', headers:['時間','内容'], rows:[['10:00','開場'],['11:00','開会式']] },
+      { type:'button', label:'参加申し込みはこちら', url:'', style:'primary' }
+    ]},
+  { key:'roundup', label:'📚 特集まとめ', desc:'関連記事をまとめて紹介', blocks: [
+      { type:'hero', heading:'特集タイトル', subheading:'サブタイトル', image:'' },
+      { type:'text', heading:'はじめに', body:'<p>この特集について書いてください。</p>' },
+      { type:'related', heading:'関連記事一覧', articleIds:[] }
+    ]},
+  { key:'recruit', label:'📢 募集・お知らせ', desc:'シンプルな告知ページ', blocks: [
+      { type:'hero', heading:'お知らせタイトル', subheading:'', image:'' },
+      { type:'text', heading:'詳細', body:'<p>ここに詳細を書いてください。</p>' },
+      { type:'button', label:'応募・お問い合わせはこちら', url:'', style:'primary' }
+    ]}
+];
+
+async function loadSpecialPages() {
+  var snap = await window._getAll('specialPages');
+  specialPages = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+  specialPages.sort(function(a,b){
+    try { var ta=(a.updatedAt&&a.updatedAt.toDate)?a.updatedAt.toDate():new Date(0); var tb=(b.updatedAt&&b.updatedAt.toDate)?b.updatedAt.toDate():new Date(0); return tb-ta; }
+    catch(e){ return 0; }
+  });
+}
+
+async function renderSpecialPagesList() {
+  var tbody = document.getElementById('sp-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--muted)">読み込み中…</td></tr>';
+  try { await loadSpecialPages(); } catch(e) { console.error('loadSpecialPages:', e); toast('特設ページの読み込みに失敗しました','error'); }
+  var empty = document.getElementById('sp-empty');
+  if (!specialPages.length) { tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = specialPages.map(function(p){
+    var statusTag = p.status==='published'
+      ? '<span class="tag tag-g">公開中</span>'
+      : '<span class="tag" style="background:#f3f3f3;color:var(--muted)">下書き</span>';
+    return '<tr>'
+      + '<td style="font-weight:600;font-size:.83rem">'+(p.title||'（無題）')+'</td>'
+      + '<td style="font-size:.78rem;color:var(--muted)">/'+(p.slug||'—')+'</td>'
+      + '<td>'+statusTag+'</td>'
+      + '<td style="font-size:.76rem;white-space:nowrap">'+fmtDate(p.updatedAt)+'</td>'
+      + '<td><div class="acts">'
+      + '<button class="btn btn-o btn-sm" onclick="startEditSpecialPage(\''+p.id+'\')">✏️</button>'
+      + '<button class="btn btn-r btn-sm" onclick="askDelSpecialPage(\''+p.id+'\',\''+(p.title||'').replace(/'/g,"\\'")+'\')">🗑️</button>'
+      + '</div></td></tr>';
+  }).join('');
+}
+
+function openTemplatePicker() {
+  document.getElementById('template-picker-list').innerHTML = SP_TEMPLATES.map(function(t){
+    return '<div style="border:1.5px solid var(--border);border-radius:8px;padding:1rem;cursor:pointer" onclick="startFromTemplate(\''+t.key+'\')" onmouseover="this.style.borderColor=\'var(--green)\'" onmouseout="this.style.borderColor=\'var(--border)\'">'
+      + '<div style="font-weight:700;font-size:.9rem;margin-bottom:.3rem">'+t.label+'</div>'
+      + '<div style="font-size:.78rem;color:var(--muted)">'+t.desc+'</div>'
+      + '</div>';
+  }).join('');
+  document.getElementById('template-picker-modal').classList.add('on');
+}
+function closeTemplatePicker() { document.getElementById('template-picker-modal').classList.remove('on'); }
+
+function startFromTemplate(key) {
+  var tpl = SP_TEMPLATES.find(function(t){ return t.key===key; });
+  closeTemplatePicker();
+  spCurrentId = null;
+  spCurrentBlocks = JSON.parse(JSON.stringify((tpl && tpl.blocks) || []));
+  spCurrentBlocks.forEach(function(b){ b._uid = 'b_'+Math.random().toString(36).slice(2,9); });
+  document.getElementById('sp-title').value = '';
+  document.getElementById('sp-slug').value = '';
+  document.getElementById('sp-color').value = '#2d6a4f';
+  document.getElementById('sp-desc').value = '';
+  document.getElementById('sp-status').value = 'draft';
+  document.getElementById('sp-publishat').value = '';
+  document.getElementById('sp-unpublishat').value = '';
+  document.getElementById('sp-editor-title').textContent = '特設ページを新規作成';
+  document.getElementById('specialpages-list-panel').style.display = 'none';
+  document.getElementById('specialpage-editor-panel').style.display = 'block';
+  renderSpBlocksList();
+}
+
+async function startEditSpecialPage(id) {
+  var p = specialPages.find(function(x){ return x.id===id; });
+  if (!p) return;
+  spCurrentId = id;
+  spCurrentBlocks = JSON.parse(JSON.stringify(p.blocks||[]));
+  spCurrentBlocks.forEach(function(b){ if(!b._uid) b._uid = 'b_'+Math.random().toString(36).slice(2,9); });
+  document.getElementById('sp-title').value = p.title||'';
+  document.getElementById('sp-slug').value = p.slug||'';
+  document.getElementById('sp-color').value = p.themeColor||'#2d6a4f';
+  document.getElementById('sp-desc').value = p.description||'';
+  document.getElementById('sp-status').value = p.status||'draft';
+  document.getElementById('sp-publishat').value = p.publishAt ? toDatetimeLocal(new Date(p.publishAt)) : '';
+  document.getElementById('sp-unpublishat').value = p.unpublishAt ? toDatetimeLocal(new Date(p.unpublishAt)) : '';
+  document.getElementById('sp-editor-title').textContent = '編集: ' + (p.title||'');
+  document.getElementById('specialpages-list-panel').style.display = 'none';
+  document.getElementById('specialpage-editor-panel').style.display = 'block';
+  renderSpBlocksList();
+}
+
+function closeSpecialPageEditor() {
+  document.getElementById('specialpage-editor-panel').style.display = 'none';
+  document.getElementById('specialpages-list-panel').style.display = 'block';
+  spCurrentId = null;
+  spCurrentBlocks = [];
+}
+
+async function saveSpecialPage() {
+  var title = document.getElementById('sp-title').value.trim();
+  var slug = document.getElementById('sp-slug').value.trim();
+  if (!title) { toast('タイトルを入力してください', 'warn'); return; }
+  if (!slug || !/^[a-zA-Z0-9_-]+$/.test(slug)) { toast('スラッグは半角英数字・ハイフン・アンダースコアのみで入力してください', 'warn'); return; }
+
+  var dup = specialPages.find(function(p){ return p.slug===slug && p.id!==spCurrentId; });
+  if (dup) { toast('このスラッグは既に使われています', 'warn'); return; }
+
+  var blocksToSave = spCurrentBlocks.map(function(b){ var c = Object.assign({}, b); delete c._uid; return c; });
+
+  var data = {
+    title: title,
+    slug: slug,
+    themeColor: document.getElementById('sp-color').value,
+    description: document.getElementById('sp-desc').value.trim(),
+    status: document.getElementById('sp-status').value,
+    publishAt: document.getElementById('sp-publishat').value ? new Date(document.getElementById('sp-publishat').value).toISOString() : '',
+    unpublishAt: document.getElementById('sp-unpublishat').value ? new Date(document.getElementById('sp-unpublishat').value).toISOString() : '',
+    blocks: blocksToSave,
+    updatedAt: window._ts()
+  };
+
+  var btn = document.getElementById('sp-save-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 保存中…';
+  try {
+    if (spCurrentId) {
+      await window._updateDoc('specialPages', spCurrentId, data);
+    } else {
+      data.createdAt = window._ts();
+      var ref = await window._addDoc('specialPages', data);
+      spCurrentId = ref.id;
+    }
+    toast('保存しました ✅');
+    await loadSpecialPages();
+  } catch (e) { toast('保存失敗: ' + e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '💾 保存する'; }
+}
+
+function askDelSpecialPage(id, title) {
+  openPin('特設ページを削除', '「' + title + '」を削除します。公開中の場合はページも見れなくなります。\nこの操作は取り消せません。', function () {
+    window._deleteDoc('specialPages', id)
+      .then(function () { toast('削除しました'); loadSpecialPages().then(renderSpecialPagesList); })
+      .catch(function (e) { toast('削除失敗: ' + e.message, 'error'); });
+  });
+}
+
+function previewSpecialPage() {
+  var slug = document.getElementById('sp-slug').value.trim();
+  if (!slug) { toast('スラッグを入力してから保存し、プレビューしてください', 'warn'); return; }
+  if (!spCurrentId) { toast('先に保存してからプレビューしてください', 'warn'); return; }
+  if (document.getElementById('sp-status').value !== 'published') { toast('プレビューは「公開」状態で保存した場合のみ見られます（下書き中は非公開サイトからは見えません）', 'warn'); return; }
+  window.open(location.origin + location.pathname.replace('admin.html', 'index.html') + '#special/' + encodeURIComponent(slug), '_blank');
+}
+
+// ---- ブロック一覧の描画 ----
+function renderSpBlocksList() {
+  var wrap = document.getElementById('sp-blocks-list');
+  if (!spCurrentBlocks.length) { wrap.innerHTML = '<div style="font-size:.82rem;color:var(--light)">まだブロックがありません。下の「＋ ブロックを追加」から追加してください。</div>'; return; }
+  wrap.innerHTML = spCurrentBlocks.map(function (b, idx) { return spBlockCardHtml(b, idx); }).join('');
+}
+
+function escapeHtml(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function escAttr(s) { return escapeHtml(s).replace(/"/g, '&quot;'); }
+function fRow(label, html) { return '<div class="frow" style="margin-bottom:.7rem"><label class="flabel">' + label + '</label>' + html + '</div>'; }
+function inputHtml(idx, field, value, placeholder) {
+  return '<input type="text" class="finput" placeholder="' + (placeholder||'') + '" value="' + escAttr(value) + '" oninput="updateSpBlockField(' + idx + ',\'' + field + '\',this.value)" />';
+}
+function textareaHtml(idx, field, value) {
+  return '<textarea class="finput" style="min-height:100px;font-family:inherit" oninput="updateSpBlockField(' + idx + ',\'' + field + '\',this.value)">' + escapeHtml(value) + '</textarea>';
+}
+function selectHtml(idx, field, value, options) {
+  return '<select class="fselect" onchange="updateSpBlockField(' + idx + ',\'' + field + '\',this.value)">'
+    + options.map(function (o) { return '<option value="' + o[0] + '"' + (value === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('')
+    + '</select>';
+}
+function updateSpBlockField(idx, field, val) { if (spCurrentBlocks[idx]) spCurrentBlocks[idx][field] = val; }
+function updateSpBlockDate(idx, field, val) { if (spCurrentBlocks[idx]) spCurrentBlocks[idx][field] = val ? new Date(val).toISOString() : ''; }
+
+function spBlockHeaderHtml(idx, label) {
+  return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">'
+    + '<span style="font-weight:700;font-size:.85rem">' + label + '</span>'
+    + '<div style="display:flex;gap:.3rem">'
+    + '<button class="btn btn-o btn-sm" onclick="moveSpBlock(' + idx + ',-1)" title="上へ">↑</button>'
+    + '<button class="btn btn-o btn-sm" onclick="moveSpBlock(' + idx + ',1)" title="下へ">↓</button>'
+    + '<button class="btn btn-r btn-sm" onclick="deleteSpBlock(' + idx + ')">🗑️</button>'
+    + '</div></div>';
+}
+
+function spBlockCardHtml(b, idx) {
+  var inner = '';
+  if (b.type === 'hero') {
+    inner = fRow('見出し', inputHtml(idx, 'heading', b.heading))
+      + fRow('サブ見出し', inputHtml(idx, 'subheading', b.subheading))
+      + fRow('背景画像URL（空欄ならテーマカラーの単色背景）', inputHtml(idx, 'image', b.image));
+  } else if (b.type === 'text') {
+    inner = fRow('小見出し（任意）', inputHtml(idx, 'heading', b.heading))
+      + fRow('本文（HTML可）', textareaHtml(idx, 'body', b.body));
+  } else if (b.type === 'image') {
+    inner = fRow('画像URL', inputHtml(idx, 'url', b.url))
+      + fRow('キャプション（任意）', inputHtml(idx, 'caption', b.caption));
+  } else if (b.type === 'button') {
+    inner = fRow('文言', inputHtml(idx, 'label', b.label))
+      + fRow('リンク先URL', inputHtml(idx, 'url', b.url))
+      + fRow('スタイル', selectHtml(idx, 'style', b.style || 'primary', [['primary', '塗りつぶし'], ['secondary', '枠線のみ']]));
+  } else if (b.type === 'grid') {
+    inner = fRow('見出し（任意）', inputHtml(idx, 'heading', b.heading)) + gridItemsHtml(idx, b.items || []);
+  } else if (b.type === 'table') {
+    inner = fRow('見出し（任意）', inputHtml(idx, 'heading', b.heading)) + tableEditorHtml(idx, b);
+  } else if (b.type === 'countdown') {
+    inner = fRow('ラベル', inputHtml(idx, 'label', b.label, '投票日まで'))
+      + fRow('目標日時', '<input type="datetime-local" class="finput" value="' + (b.target ? toDatetimeLocal(new Date(b.target)) : '') + '" onchange="updateSpBlockDate(' + idx + ',\'target\',this.value)" />');
+  } else if (b.type === 'related') {
+    inner = fRow('見出し（任意）', inputHtml(idx, 'heading', b.heading)) + relatedPickerHtml(idx, b.articleIds || []);
+  } else if (b.type === 'html') {
+    inner = fRow('HTML（scriptタグも使用できます）', '<textarea class="finput" style="min-height:160px;font-family:monospace;font-size:.8rem" oninput="updateSpBlockField(' + idx + ',\'code\',this.value)">' + escapeHtml(b.code) + '</textarea>')
+      + '<div class="fhint">埋め込みコード（Googleフォーム等）にも使えます。入力ミスがあるとページ全体の表示が崩れる場合があるので、必ず「👁️ プレビュー」で確認してください。</div>';
+  }
+  return '<div style="border:1px solid var(--border);border-radius:8px;padding:1rem 1.1rem;background:var(--bg)">'
+    + spBlockHeaderHtml(idx, SP_BLOCK_LABEL[b.type] || b.type)
+    + inner
+    + '</div>';
+}
+
+function gridItemsHtml(idx, items) {
+  var rows = items.map(function (it, i) {
+    return '<div style="display:flex;gap:.4rem;margin-bottom:.4rem;align-items:flex-start;flex-wrap:wrap">'
+      + '<input type="text" class="finput" placeholder="タイトル" value="' + escAttr(it.title) + '" style="flex:1;min-width:120px" oninput="updateSpGridItem(' + idx + ',' + i + ',\'title\',this.value)" />'
+      + '<input type="text" class="finput" placeholder="画像URL" value="' + escAttr(it.image) + '" style="flex:1;min-width:120px" oninput="updateSpGridItem(' + idx + ',' + i + ',\'image\',this.value)" />'
+      + '<input type="text" class="finput" placeholder="説明" value="' + escAttr(it.desc) + '" style="flex:1.5;min-width:140px" oninput="updateSpGridItem(' + idx + ',' + i + ',\'desc\',this.value)" />'
+      + '<button class="btn btn-r btn-sm" onclick="removeSpGridItem(' + idx + ',' + i + ')">✕</button>'
+      + '</div>';
+  }).join('');
+  return '<div class="flabel" style="margin:.6rem 0 .4rem">項目（' + items.length + '件）</div>' + rows
+    + '<button class="bi-add" onclick="addSpGridItem(' + idx + ')">＋ 項目を追加</button>';
+}
+function updateSpGridItem(bIdx, iIdx, field, val) { spCurrentBlocks[bIdx].items[iIdx][field] = val; }
+function addSpGridItem(bIdx) { spCurrentBlocks[bIdx].items = spCurrentBlocks[bIdx].items || []; spCurrentBlocks[bIdx].items.push({ title: '', image: '', desc: '' }); renderSpBlocksList(); }
+function removeSpGridItem(bIdx, iIdx) { spCurrentBlocks[bIdx].items.splice(iIdx, 1); renderSpBlocksList(); }
+
+function tableEditorHtml(idx, b) {
+  var headers = b.headers || ['項目1', '項目2'];
+  var rows = b.rows || [];
+  var headHtml = headers.map(function (h, ci) {
+    return '<input type="text" class="finput" value="' + escAttr(h) + '" style="flex:1" oninput="updateSpTableHeader(' + idx + ',' + ci + ',this.value)" />';
+  }).join('');
+  var rowsHtml = rows.map(function (r, ri) {
+    var cellsHtml = r.map(function (c, ci) {
+      return '<input type="text" class="finput" value="' + escAttr(c) + '" style="flex:1" oninput="updateSpTableCell(' + idx + ',' + ri + ',' + ci + ',this.value)" />';
+    }).join('');
+    return '<div style="display:flex;gap:.4rem;margin-bottom:.4rem">' + cellsHtml + '<button class="btn btn-r btn-sm" onclick="removeSpTableRow(' + idx + ',' + ri + ')">✕</button></div>';
+  }).join('');
+  return '<div class="flabel" style="margin:.6rem 0 .3rem">列見出し</div><div style="display:flex;gap:.4rem;margin-bottom:.6rem;align-items:center">' + headHtml
+    + '<button class="btn btn-o btn-sm" onclick="addSpTableColumn(' + idx + ')">＋列</button></div>'
+    + '<div class="flabel" style="margin-bottom:.3rem">行データ（' + rows.length + '行）</div>' + rowsHtml
+    + '<button class="bi-add" onclick="addSpTableRow(' + idx + ')">＋ 行を追加</button>';
+}
+function updateSpTableHeader(bIdx, ci, val) { spCurrentBlocks[bIdx].headers[ci] = val; }
+function updateSpTableCell(bIdx, ri, ci, val) { spCurrentBlocks[bIdx].rows[ri][ci] = val; }
+function addSpTableColumn(bIdx) {
+  var b = spCurrentBlocks[bIdx];
+  b.headers = b.headers || []; b.headers.push('項目' + (b.headers.length + 1));
+  (b.rows || []).forEach(function (r) { r.push(''); });
+  renderSpBlocksList();
+}
+function addSpTableRow(bIdx) {
+  var b = spCurrentBlocks[bIdx];
+  var cols = (b.headers || []).length || 2;
+  b.rows = b.rows || []; b.rows.push(new Array(cols).fill(''));
+  renderSpBlocksList();
+}
+function removeSpTableRow(bIdx, ri) { spCurrentBlocks[bIdx].rows.splice(ri, 1); renderSpBlocksList(); }
+
+function relatedPickerHtml(idx, selectedIds) {
+  var opts = articles.slice(0, 300).map(function (a) {
+    var checked = selectedIds.indexOf(a.id) >= 0 ? 'checked' : '';
+    return '<label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;padding:.25rem 0;cursor:pointer">'
+      + '<input type="checkbox" ' + checked + ' onchange="toggleSpRelatedArticle(' + idx + ',\'' + a.id + '\',this.checked)" /> ' + a.title
+      + '</label>';
+  }).join('');
+  return '<div class="flabel" style="margin:.6rem 0 .3rem">記事を選択（' + selectedIds.length + '件選択中）</div>'
+    + '<div style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:.5rem .75rem">' + (opts || '<div style="font-size:.8rem;color:var(--light)">記事がありません</div>') + '</div>';
+}
+function toggleSpRelatedArticle(bIdx, articleId, checked) {
+  var b = spCurrentBlocks[bIdx];
+  b.articleIds = b.articleIds || [];
+  var pos = b.articleIds.indexOf(articleId);
+  if (checked && pos < 0) b.articleIds.push(articleId);
+  if (!checked && pos >= 0) b.articleIds.splice(pos, 1);
+  renderSpBlocksList(); // 選択件数の表示を更新するため再描画
+}
+
+function moveSpBlock(idx, dir) {
+  var newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= spCurrentBlocks.length) return;
+  var tmp = spCurrentBlocks[idx];
+  spCurrentBlocks[idx] = spCurrentBlocks[newIdx];
+  spCurrentBlocks[newIdx] = tmp;
+  renderSpBlocksList();
+}
+function deleteSpBlock(idx) { spCurrentBlocks.splice(idx, 1); renderSpBlocksList(); }
+
+function addSpecialBlock(type) {
+  var defaults = {
+    hero: { heading: '', subheading: '', image: '' },
+    text: { heading: '', body: '' },
+    image: { url: '', caption: '' },
+    button: { label: '', url: '', style: 'primary' },
+    grid: { heading: '', items: [] },
+    table: { heading: '', headers: ['項目1', '項目2'], rows: [] },
+    countdown: { label: '', target: '' },
+    related: { heading: '', articleIds: [] },
+    html: { code: '' }
+  };
+  var block = Object.assign({ type: type, _uid: 'b_' + Math.random().toString(36).slice(2, 9) }, defaults[type] || {});
+  spCurrentBlocks.push(block);
+  renderSpBlocksList();
 }
 
 // ============================================================
