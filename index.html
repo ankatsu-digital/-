@@ -664,6 +664,57 @@
     .static-page ul{padding-left:1.5rem;margin-bottom:1em}
     .static-page ul li{font-size:.93rem;line-height:1.9;color:var(--text-muted)}
 
+    /* 特設ページ（ブロックエディタで作る特集ページ） */
+    #special-view{display:none}
+    #special-view.visible{display:block}
+    .sp-page{--sp-accent: var(--accent); max-width:100%; margin:-2rem -1.5rem 0; }
+    .sp-block{max-width:900px;margin:0 auto;padding:2.5rem 1.5rem}
+    .sp-hero{max-width:none;margin:0 0 0;padding:5rem 1.5rem;text-align:center;background-size:cover;background-position:center;position:relative;color:#fff}
+    .sp-hero::before{content:'';position:absolute;inset:0;background:linear-gradient(0deg, rgba(0,0,0,.55), rgba(0,0,0,.25))}
+    .sp-hero-inner{position:relative;max-width:760px;margin:0 auto}
+    .sp-hero-title{font-family:var(--serif);font-size:clamp(1.8rem,5vw,3rem);font-weight:900;line-height:1.35;margin-bottom:.75rem}
+    .sp-hero-sub{font-size:1rem;opacity:.92;line-height:1.8}
+    .sp-hero.no-image{background-color:var(--sp-accent)}
+    .sp-hero.no-image::before{display:none}
+    .sp-text-heading{font-family:var(--serif);font-size:1.35rem;font-weight:900;margin-bottom:.9rem;padding-left:.85rem;border-left:4px solid var(--sp-accent)}
+    .sp-text-body{font-size:.95rem;line-height:1.95;color:var(--text-main)}
+    .sp-text-body p{margin-bottom:1em}
+    .sp-image-wrap img{width:100%;border-radius:8px;display:block}
+    .sp-image-caption{font-size:.8rem;color:var(--text-light);margin-top:.6rem;text-align:center}
+    .sp-btn-wrap{text-align:center}
+    .sp-btn{display:inline-flex;align-items:center;gap:.5rem;background:var(--sp-accent);color:#fff !important;padding:.9rem 2.2rem;border-radius:30px;font-weight:700;font-size:1rem;text-decoration:none;box-shadow:0 6px 18px rgba(0,0,0,.15);transition:transform .15s}
+    .sp-btn:hover{transform:translateY(-2px)}
+    .sp-btn.secondary{background:none;border:2px solid var(--sp-accent);color:var(--sp-accent) !important}
+    .sp-grid-heading{font-family:var(--serif);font-size:1.35rem;font-weight:900;margin-bottom:1.25rem;text-align:center}
+    .sp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1.25rem}
+    .sp-grid-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 3px 10px var(--shadow)}
+    .sp-grid-card img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+    .sp-grid-card-body{padding:1rem}
+    .sp-grid-card-title{font-weight:700;font-size:.92rem;margin-bottom:.4rem}
+    .sp-grid-card-desc{font-size:.82rem;color:var(--text-muted);line-height:1.7}
+    .sp-table-heading{font-family:var(--serif);font-size:1.2rem;font-weight:900;margin-bottom:1rem}
+    .sp-table{width:100%;border-collapse:collapse;font-size:.88rem}
+    .sp-table th{background:var(--sp-accent);color:#fff;padding:.7rem .9rem;text-align:left}
+    .sp-table td{padding:.7rem .9rem;border-bottom:1px solid var(--border)}
+    .sp-table tr:nth-child(even) td{background:var(--bg-sub)}
+    .sp-countdown{text-align:center}
+    .sp-countdown-label{font-size:.95rem;font-weight:700;color:var(--text-muted);margin-bottom:1rem}
+    .sp-countdown-nums{display:flex;justify-content:center;gap:.9rem;flex-wrap:wrap}
+    .sp-cd-unit{background:var(--sp-accent);color:#fff;border-radius:10px;padding:1rem 1.1rem;min-width:80px}
+    .sp-cd-num{font-size:1.9rem;font-weight:900;font-family:var(--serif);line-height:1}
+    .sp-cd-label{font-size:.7rem;opacity:.85;margin-top:.3rem}
+    .sp-cd-ended{font-size:1.2rem;font-weight:700;color:var(--sp-accent)}
+    .sp-related-heading{font-family:var(--serif);font-size:1.2rem;font-weight:900;margin-bottom:1rem}
+    .sp-related-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem}
+    .sp-related-card{display:block;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;overflow:hidden;text-decoration:none;color:var(--text-main)}
+    .sp-related-card img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:var(--bg-sub)}
+    .sp-related-card-title{font-size:.85rem;font-weight:700;padding:.75rem;line-height:1.5}
+    .sp-html-block{max-width:none}
+    @media(max-width:640px){
+      .sp-hero{padding:3.5rem 1.25rem}
+      .sp-block{padding:2rem 1.25rem}
+    }
+
     /* お問い合わせ */
     .contact-form{display:flex;flex-direction:column;gap:1.25rem;margin-top:1.5rem}
     .contact-row{display:flex;flex-direction:column;gap:.35rem}
@@ -984,6 +1035,10 @@
 
     <section id="static-view">
       <div id="static-content"></div>
+    </section>
+
+    <section id="special-view">
+      <div id="special-content"></div>
     </section>
   </main>
 
@@ -1512,6 +1567,7 @@
     document.getElementById('calendar-view').classList.toggle('visible',v==='calendar');
     document.getElementById('archive-view').classList.toggle('visible',v==='archive');
     document.getElementById('author-view').classList.toggle('visible',v==='author');
+    document.getElementById('special-view').classList.toggle('visible',v==='special');
     currentView=v; window.scrollTo(0,0);
   }
 
@@ -2073,6 +2129,7 @@
     else if(h.startsWith('#cat/'))   filterByCategory(decodeURIComponent(h.slice(5)));
     else if(h.startsWith('#tag/'))   filterByTag(decodeURIComponent(h.slice(5)));
     else if(h.startsWith('#search/'))doSearch(decodeURIComponent(h.slice(8)));
+    else if(h.startsWith('#special/')) openSpecialPage(decodeURIComponent(h.slice(9)));
     else if(h.startsWith('#page/')) showStaticPage(decodeURIComponent(h.slice(6)));
   });
 
@@ -2087,7 +2144,152 @@
     else if(h==='#archive')         filterByCategory('archive');
     else if(h.startsWith('#archive/')){var parts=decodeURIComponent(h.slice(9)).split('-');openArchiveMonth(parseInt(parts[0],10),parseInt(parts[1],10));}
     else if(h.startsWith('#author/')){var an=decodeURIComponent(h.slice(8));renderAuthorPage(an);showView('author');}
+    else if(h.startsWith('#special/')) openSpecialPage(decodeURIComponent(h.slice(9)));
     else if(h.startsWith('#page/')) showStaticPage(decodeURIComponent(h.slice(6)));
+  }
+
+  /* =========================================================================
+     特設ページ（ブロックエディタで作る特集ページ）
+     ========================================================================= */
+  var _countdownTimers = [];
+
+  async function openSpecialPage(slug){
+    var db=window._db; var ops=window._firestoreOp;
+    if(!db||!ops){ showShareToast('読み込み中です。もう一度お試しください'); return; }
+    document.getElementById('special-content').innerHTML = '<div style="max-width:760px;margin:3rem auto;text-align:center;color:var(--text-light)">読み込み中…</div>';
+    showView('special');
+    try{
+      var q = ops.query(ops.collection(db,'specialPages'), ops.where('slug','==',slug), ops.where('status','==','published'));
+      var snap = await ops.getDocs(q);
+      if(snap.empty){
+        document.getElementById('special-content').innerHTML = '<div style="max-width:760px;margin:4rem auto;text-align:center;color:var(--text-light)"><div style="font-size:2.5rem;margin-bottom:1rem">📭</div>このページは見つかりませんでした。</div>';
+        return;
+      }
+      var page = Object.assign({id:snap.docs[0].id}, snap.docs[0].data());
+      var now = new Date();
+      if(page.publishAt){ var s=new Date(page.publishAt); if(!isNaN(s) && now<s){ document.getElementById('special-content').innerHTML = '<div style="max-width:760px;margin:4rem auto;text-align:center;color:var(--text-light)">このページはまだ公開されていません。</div>'; return; } }
+      if(page.unpublishAt){ var en=new Date(page.unpublishAt); if(!isNaN(en) && now>en){ document.getElementById('special-content').innerHTML = '<div style="max-width:760px;margin:4rem auto;text-align:center;color:var(--text-light)">このページの公開期間は終了しました。</div>'; return; } }
+      renderSpecialPage(page);
+      document.title = (page.title||'特集') + ' | アンカツ＋';
+    }catch(e){
+      console.error('特設ページ読み込みエラー:', e);
+      document.getElementById('special-content').innerHTML = '<div style="max-width:760px;margin:4rem auto;text-align:center;color:var(--text-light)">読み込みに失敗しました。</div>';
+    }
+  }
+
+  function renderSpecialPage(page){
+    _countdownTimers.forEach(function(t){ clearInterval(t); });
+    _countdownTimers = [];
+    var wrap = document.getElementById('special-content');
+    wrap.innerHTML = '<div class="sp-page" style="--sp-accent:'+(page.themeColor||'#2d6a4f')+'"></div>';
+    var pageEl = wrap.firstElementChild;
+    (page.blocks||[]).forEach(function(block){
+      var el = renderSpecialBlock(block, page);
+      if(el) pageEl.appendChild(el);
+    });
+  }
+
+  function relatedArticleCardsHtml(ids){
+    return (ids||[]).map(function(id){
+      var a = allArticles.find(function(x){ return x.id===id; });
+      if(!a) return '';
+      var img = a.thumbnail ? '<img src="'+a.thumbnail+'" alt="'+a.title+'">' : '<div style="width:100%;aspect-ratio:16/9;background:var(--accent-pale);display:flex;align-items:center;justify-content:center;font-size:1.6rem">'+(CAT_EMOJI[a.category]||'📰')+'</div>';
+      return '<a class="sp-related-card" href="#article/'+(a.slug||a.id)+'" onclick="event.preventDefault();openArticle(\''+a.id+'\')">'+img+'<div class="sp-related-card-title">'+a.title+'</div></a>';
+    }).join('');
+  }
+
+  function renderSpecialBlock(block, page){
+    var div = document.createElement('div');
+    switch(block.type){
+      case 'hero':
+        div.className = 'sp-hero' + (block.image ? '' : ' no-image');
+        if(block.image) div.style.backgroundImage = "url('"+block.image+"')";
+        div.innerHTML = '<div class="sp-hero-inner">'
+          + (block.heading ? '<div class="sp-hero-title">'+block.heading+'</div>' : '')
+          + (block.subheading ? '<div class="sp-hero-sub">'+block.subheading+'</div>' : '')
+          + '</div>';
+        return div;
+      case 'text':
+        div.className = 'sp-block';
+        div.innerHTML = (block.heading ? '<div class="sp-text-heading">'+block.heading+'</div>' : '')
+          + '<div class="sp-text-body">'+(block.body||'')+'</div>';
+        return div;
+      case 'image':
+        div.className = 'sp-block sp-image-wrap';
+        div.innerHTML = '<img src="'+(block.url||'')+'" alt="'+(block.caption||'')+'">'
+          + (block.caption ? '<div class="sp-image-caption">'+block.caption+'</div>' : '');
+        return div;
+      case 'button':
+        div.className = 'sp-block sp-btn-wrap';
+        div.innerHTML = '<a class="sp-btn'+(block.style==='secondary'?' secondary':'')+'" href="'+(block.url||'#')+'"'+(block.newTab!==false?' target="_blank" rel="noopener"':'')+'>'+(block.label||'詳しくはこちら')+'</a>';
+        return div;
+      case 'grid':
+        div.className = 'sp-block';
+        div.innerHTML = (block.heading ? '<div class="sp-grid-heading">'+block.heading+'</div>' : '')
+          + '<div class="sp-grid">' + (block.items||[]).map(function(it){
+              return '<div class="sp-grid-card">'
+                + (it.image ? '<img src="'+it.image+'" alt="'+(it.title||'')+'">' : '')
+                + '<div class="sp-grid-card-body"><div class="sp-grid-card-title">'+(it.title||'')+'</div>'
+                + (it.desc ? '<div class="sp-grid-card-desc">'+it.desc+'</div>' : '') + '</div></div>';
+            }).join('') + '</div>';
+        return div;
+      case 'table':
+        div.className = 'sp-block';
+        var head = '<tr>'+(block.headers||[]).map(function(h){ return '<th>'+h+'</th>'; }).join('')+'</tr>';
+        var rows = (block.rows||[]).map(function(r){ return '<tr>'+r.map(function(c){ return '<td>'+c+'</td>'; }).join('')+'</tr>'; }).join('');
+        div.innerHTML = (block.heading ? '<div class="sp-table-heading">'+block.heading+'</div>' : '')
+          + '<div style="overflow-x:auto"><table class="sp-table"><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></div>';
+        return div;
+      case 'countdown':
+        div.className = 'sp-block sp-countdown';
+        var numsId = 'sp-cd-'+Math.random().toString(36).slice(2,9);
+        div.innerHTML = (block.label ? '<div class="sp-countdown-label">'+block.label+'</div>' : '')
+          + '<div class="sp-countdown-nums" id="'+numsId+'"></div>';
+        (function(targetStr, numsId){
+          var target = new Date(targetStr);
+          function tick(){
+            var el = document.getElementById(numsId);
+            if(!el) return; // ページ遷移済みなら何もしない
+            var diff = target - new Date();
+            if(isNaN(target) ){ el.innerHTML = ''; return; }
+            if(diff <= 0){ el.innerHTML = '<div class="sp-cd-ended">終了しました</div>'; return; }
+            var d = Math.floor(diff/86400000);
+            var h = Math.floor(diff%86400000/3600000);
+            var m = Math.floor(diff%3600000/60000);
+            var s = Math.floor(diff%60000/1000);
+            el.innerHTML = ['<div class="sp-cd-unit"><div class="sp-cd-num">'+d+'</div><div class="sp-cd-label">日</div></div>',
+              '<div class="sp-cd-unit"><div class="sp-cd-num">'+h+'</div><div class="sp-cd-label">時間</div></div>',
+              '<div class="sp-cd-unit"><div class="sp-cd-num">'+m+'</div><div class="sp-cd-label">分</div></div>',
+              '<div class="sp-cd-unit"><div class="sp-cd-num">'+s+'</div><div class="sp-cd-label">秒</div></div>'].join('');
+          }
+          tick();
+          _countdownTimers.push(setInterval(tick, 1000));
+        })(block.target, numsId);
+        return div;
+      case 'related':
+        div.className = 'sp-block';
+        div.innerHTML = (block.heading ? '<div class="sp-related-heading">'+block.heading+'</div>' : '')
+          + '<div class="sp-related-grid">'+relatedArticleCardsHtml(block.articleIds)+'</div>';
+        return div;
+      case 'html':
+        div.className = 'sp-block sp-html-block';
+        injectHtmlWithScripts(div, block.code||'');
+        return div;
+      default:
+        return null;
+    }
+  }
+
+  // innerHTMLではscript要素が実行されないため、script要素だけ手動で作り直して実行させる
+  function injectHtmlWithScripts(container, html){
+    container.innerHTML = html;
+    var scripts = container.querySelectorAll('script');
+    scripts.forEach(function(oldScript){
+      var newScript = document.createElement('script');
+      Array.from(oldScript.attributes).forEach(function(attr){ newScript.setAttribute(attr.name, attr.value); });
+      newScript.textContent = oldScript.textContent;
+      oldScript.parentNode.replaceChild(newScript, oldScript);
+    });
   }
 
   /* ---- ダークモード ---- */
