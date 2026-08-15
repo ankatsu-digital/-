@@ -3697,7 +3697,7 @@ var SP_TEMPLATES = [
       { type:'hero', heading:'イベント名をここに', subheading:'〇月〇日（〇）開催', image:'' },
       { type:'countdown', label:'開催まで', target:'' },
       { type:'text', heading:'イベント概要', body:'<p>ここに概要を書いてください。</p>' },
-      { type:'table', heading:'タイムスケジュール', headers:['時間','内容'], rows:[['10:00','開場'],['11:00','開会式']] },
+      { type:'table', heading:'タイムスケジュール', headers:['時間','内容'], rows:[{cells:['10:00','開場']},{cells:['11:00','開会式']}] },
       { type:'button', label:'参加申し込みはこちら', url:'', style:'primary' }
     ]},
   { key:'roundup', label:'📚 特集まとめ', desc:'関連記事をまとめて紹介', blocks: [
@@ -3947,7 +3947,7 @@ function tableEditorHtml(idx, b) {
     return '<input type="text" class="finput" value="' + escAttr(h) + '" style="flex:1" oninput="updateSpTableHeader(' + idx + ',' + ci + ',this.value)" />';
   }).join('');
   var rowsHtml = rows.map(function (r, ri) {
-    var cellsHtml = r.map(function (c, ci) {
+    var cellsHtml = (r.cells||[]).map(function (c, ci) {
       return '<input type="text" class="finput" value="' + escAttr(c) + '" style="flex:1" oninput="updateSpTableCell(' + idx + ',' + ri + ',' + ci + ',this.value)" />';
     }).join('');
     return '<div style="display:flex;gap:.4rem;margin-bottom:.4rem">' + cellsHtml + '<button class="btn btn-r btn-sm" onclick="removeSpTableRow(' + idx + ',' + ri + ')">✕</button></div>';
@@ -3957,18 +3957,20 @@ function tableEditorHtml(idx, b) {
     + '<div class="flabel" style="margin-bottom:.3rem">行データ（' + rows.length + '行）</div>' + rowsHtml
     + '<button class="bi-add" onclick="addSpTableRow(' + idx + ')">＋ 行を追加</button>';
 }
+// Firestoreは「配列の中に配列」を保存できないため、各行は {cells:[...]} という
+// オブジェクトで包んで保存する（rows: [{cells:['10:00','開場']}, ...] という形）
 function updateSpTableHeader(bIdx, ci, val) { spCurrentBlocks[bIdx].headers[ci] = val; }
-function updateSpTableCell(bIdx, ri, ci, val) { spCurrentBlocks[bIdx].rows[ri][ci] = val; }
+function updateSpTableCell(bIdx, ri, ci, val) { spCurrentBlocks[bIdx].rows[ri].cells[ci] = val; }
 function addSpTableColumn(bIdx) {
   var b = spCurrentBlocks[bIdx];
   b.headers = b.headers || []; b.headers.push('項目' + (b.headers.length + 1));
-  (b.rows || []).forEach(function (r) { r.push(''); });
+  (b.rows || []).forEach(function (r) { r.cells = r.cells || []; r.cells.push(''); });
   renderSpBlocksList();
 }
 function addSpTableRow(bIdx) {
   var b = spCurrentBlocks[bIdx];
   var cols = (b.headers || []).length || 2;
-  b.rows = b.rows || []; b.rows.push(new Array(cols).fill(''));
+  b.rows = b.rows || []; b.rows.push({ cells: new Array(cols).fill('') });
   renderSpBlocksList();
 }
 function removeSpTableRow(bIdx, ri) { spCurrentBlocks[bIdx].rows.splice(ri, 1); renderSpBlocksList(); }
