@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アンカツ 記事AIメーカー｜メモから記事にする</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%9D%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700;900&family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --color-ink:#2a2420; --color-ink-sub:#776f66; --color-line:rgba(42,36,32,0.10);
+  --color-paper:#FFFDF9; --color-bg:#F3EFE7;
+  --radius-xl:22px; --radius-lg:16px; --radius-md:12px; --radius-sm:8px;
+  --shadow-soft:0 4px 18px rgba(42,36,32,0.12), 0 1px 3px rgba(42,36,32,0.08);
+  --shadow-hover:0 10px 26px rgba(42,36,32,0.18);
+  --ease:cubic-bezier(.4,0,.2,1);
+  --brand-accent:#2d6a4f; --brand-accent-dark:#1f4d39; --brand-tint:#d8f3dc;
+
+  --c-event:#1a73e8;   --c-event-dark:#1558b0;
+  --c-akiya:#FF9800;   --c-akiya-dark:#E9821C;
+  --c-food:#e64a4a;    --c-food-dark:#c92f2f;
+  --c-facility:#2d9d63;--c-facility-dark:#217a4c;
+  --c-sight:#8e5cd9;   --c-sight-dark:#6f3fb8;
+  --c-notice:#0ea5e9;  --c-notice-dark:#0369a1;
+  --c-maint:#6b7280;   --c-maint-dark:#4b5563;
+  --c-bousai:#f59e0b;  --c-bousai-dark:#b45309;
+}
+*{box-sizing:border-box;}
+html,body{ margin:0; padding:0; font-family:'Noto Sans JP',sans-serif; color:var(--color-ink); background:var(--color-bg);
+  background-image:
+    radial-gradient(circle at 15% 8%, rgba(45,106,79,0.05), transparent 45%),
+    radial-gradient(circle at 85% 90%, rgba(233,130,28,0.05), transparent 45%);
+  min-height:100vh;
+}
+.font-display{ font-family:'Noto Serif JP','Zen Kaku Gothic New',sans-serif; }
+
+header{ padding:22px 24px 16px; text-align:center; }
+header .eyebrow{ font-size:11px; font-weight:700; letter-spacing:.14em; color:var(--brand-accent-dark); text-transform:uppercase; }
+header h1{ font-family:'Noto Serif JP',serif; font-weight:900; font-size:22px; margin:4px 0 6px; letter-spacing:.02em; }
+header p{ font-size:12.5px; color:var(--color-ink-sub); margin:0; }
+
+#app{ max-width:1080px; margin:0 auto; padding:8px 20px 60px; display:grid; grid-template-columns: 380px 1fr; gap:22px; align-items:start; }
+@media (max-width: 880px){ #app{ grid-template-columns: 1fr; } }
+
+.panel{ background:var(--color-paper); border:1px solid var(--color-line); border-radius:var(--radius-xl); box-shadow:var(--shadow-soft); padding:20px 20px 22px; }
+.panel + .panel{ margin-top:16px; }
+.panel h2{ font-family:'Zen Kaku Gothic New',sans-serif; font-size:13px; font-weight:900; margin:0 0 14px; display:flex; align-items:center; gap:6px; color:var(--color-ink); }
+.panel h2 .num{ display:inline-flex; align-items:center; justify-content:center; width:19px; height:19px; border-radius:50%; background:var(--brand-accent); color:#fff; font-size:10.5px; font-weight:800; }
+
+label.field-label{ display:block; font-size:11.5px; font-weight:700; color:var(--color-ink-sub); margin:14px 0 6px; }
+label.field-label:first-of-type{ margin-top:0; }
+textarea, select, input[type=text]{
+  width:100%; border:1.5px solid var(--color-line); border-radius:var(--radius-sm); padding:9px 11px; font-family:inherit; font-size:13px; color:var(--color-ink); background:#fff; outline:none; transition: border-color .15s;
+}
+textarea:focus, select:focus, input[type=text]:focus{ border-color:var(--brand-accent); }
+textarea{ resize:vertical; line-height:1.6; }
+#memo-input{ min-height:200px; }
+.hint{ font-size:10.5px; color:#9a9186; margin-top:5px; line-height:1.6; }
+
+.btn{ border:none; border-radius:24px; padding:13px 16px; font-size:13.5px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; transition: filter .15s, transform .15s; font-family:'Zen Kaku Gothic New',sans-serif; width:100%; }
+.btn:active{ transform:scale(0.98); }
+.btn:disabled{ opacity:0.55; cursor:not-allowed; }
+.btn-primary{ background:var(--brand-accent); color:#fff; margin-top:16px; }
+.btn-primary:hover:not(:disabled){ filter:brightness(1.08); }
+.btn-ghost{ background:rgba(0,0,0,0.05); color:var(--color-ink); }
+.btn-ghost:hover{ background:rgba(0,0,0,0.08); }
+.btn-sm{ width:auto; padding:6px 12px; font-size:11px; border-radius:16px; }
+
+.spinner{ width:15px; height:15px; border:2.5px solid rgba(255,255,255,0.4); border-top-color:#fff; border-radius:50%; animation:spin 0.8s linear infinite; display:none; }
+@keyframes spin{ to{ transform:rotate(360deg); } }
+.btn-primary.loading .spinner{ display:inline-block; }
+.btn-primary.loading .btn-label{ opacity:0.85; }
+
+/* ---------- 出力側 ---------- */
+#result-empty{ text-align:center; padding:60px 20px; color:var(--color-ink-sub); }
+#result-empty .em{ font-size:40px; display:block; margin-bottom:10px; }
+#result-empty p{ font-size:13px; line-height:1.8; margin:0; }
+
+#result-content{ display:none; }
+
+.cat-badge{ display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:#fff; padding:6px 14px; border-radius:20px; margin-bottom:16px; }
+
+.out-row{ margin-bottom:18px; }
+.out-row-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+.out-row-head label{ font-size:11px; font-weight:800; color:var(--color-ink-sub); letter-spacing:.02em; }
+.copy-btn{ background:rgba(45,106,79,0.09); color:var(--brand-accent-dark); border:none; border-radius:14px; padding:4px 11px; font-size:10.5px; font-weight:700; cursor:pointer; transition: background .15s; }
+.copy-btn:hover{ background:rgba(45,106,79,0.16); }
+.copy-btn.copied{ background:var(--brand-accent); color:#fff; }
+
+#out-title{ font-family:'Noto Serif JP',serif; font-weight:900; font-size:19px; padding:10px 12px; }
+#out-body{ min-height:220px; font-size:13.5px; }
+#out-sns{ min-height:64px; font-size:13px; }
+
+#cat-select{ font-weight:700; }
+
+#result-actions{ display:flex; gap:8px; margin-top:6px; }
+#result-actions .btn{ flex:1; }
+
+#status-note{ font-size:11.5px; color:var(--color-ink-sub); text-align:center; margin-top:10px; min-height:16px; }
+#status-note.error{ color:#c92f2f; font-weight:700; }
+
+.disclaimer{ background:rgba(233,130,28,0.08); border:1px solid rgba(233,130,28,0.25); border-radius:var(--radius-md); padding:10px 13px; font-size:11px; color:#8a5a12; line-height:1.7; margin-top:16px; display:flex; gap:8px; }
+
+footer{ text-align:center; padding:10px 20px 30px; font-size:10.5px; color:#a89f93; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">アンカツ＋ 編集部ツール</div>
+  <h1 class="font-display">📝 記事AIメーカー</h1>
+  <p>メモを入れるだけで、タイトル・本文・カテゴリ・SNS文言をAIが作ります</p>
+</header>
+
+<div id="app">
+  <!-- ============ 左：入力 ============ -->
+  <div id="controls">
+    <div class="panel">
+      <h2><span class="num">1</span>メモを入力</h2>
+      <textarea id="memo-input" placeholder="例：
+・8/9(日) 本町商店街アーケードでマルシェ
+・地元飲食店、雑貨店が出店
+・10時〜16時、ステージイベントもあり
+・雨天決行
+のように、箇条書きやラフなメモでOKです"></textarea>
+      <p class="hint">メモに書いた情報だけを使って記事にします。日時や場所などメモにない具体情報は、AIが勝手に作らないようにしています。</p>
+
+      <label class="field-label">カテゴリ</label>
+      <select id="cat-hint-select">
+        <option value="auto">🤖 AIにおまかせ</option>
+        <option value="event">🎉 イベント</option>
+        <option value="akiya">🏠 空き家</option>
+        <option value="food">🍴 飲食</option>
+        <option value="facility">🏛️ 施設</option>
+        <option value="sightseeing">⛩️ 観光</option>
+        <option value="notice">📢 お知らせ</option>
+        <option value="maintenance">🔧 メンテナンス</option>
+        <option value="bousai">🚨 防災</option>
+      </select>
+
+      <label class="field-label">文章のトーン</label>
+      <select id="tone-select">
+        <option value="polite">丁寧・落ち着いた文章（標準）</option>
+        <option value="friendly">親しみやすい・カジュアル</option>
+        <option value="formal">硬め・公式なお知らせ調</option>
+      </select>
+
+      <button class="btn btn-primary" id="generate-btn">
+        <span class="spinner"></span>
+        <span class="btn-label">✨ AIで記事にする</span>
+      </button>
+      <div id="status-note"></div>
+    </div>
+  </div>
+
+  <!-- ============ 右：出力 ============ -->
+  <div id="output">
+    <div class="panel">
+      <h2><span class="num">2</span>生成結果（編集できます）</h2>
+
+      <div id="result-empty">
+        <span class="em">📰</span>
+        <p>左にメモを入力して「AIで記事にする」を押すと、<br>ここに記事の下書きが表示されます</p>
+      </div>
+
+      <div id="result-content">
+        <label class="field-label" style="margin-top:0;">カテゴリ</label>
+        <select id="cat-select">
+          <option value="event">🎉 イベント</option>
+          <option value="akiya">🏠 空き家</option>
+          <option value="food">🍴 飲食</option>
+          <option value="facility">🏛️ 施設</option>
+          <option value="sightseeing">⛩️ 観光</option>
+          <option value="notice">📢 お知らせ</option>
+          <option value="maintenance">🔧 メンテナンス</option>
+          <option value="bousai">🚨 防災</option>
+        </select>
+
+        <div class="out-row">
+          <div class="out-row-head"><label>タイトル</label><button class="copy-btn" data-copy="out-title">コピー</button></div>
+          <input type="text" id="out-title">
+        </div>
+
+        <div class="out-row">
+          <div class="out-row-head"><label>本文</label><button class="copy-btn" data-copy="out-body">コピー</button></div>
+          <textarea id="out-body"></textarea>
+        </div>
+
+        <div class="out-row">
+          <div class="out-row-head"><label>SNS拡散用の短文</label><button class="copy-btn" data-copy="out-sns">コピー</button></div>
+          <textarea id="out-sns"></textarea>
+        </div>
+
+        <div id="result-actions">
+          <button class="btn btn-ghost" id="regenerate-btn">🔄 もう一度生成</button>
+          <button class="btn btn-ghost" id="copyall-btn">📋 すべてコピー</button>
+        </div>
+
+        <div class="disclaimer">
+          ⚠️ <span>AIが生成した文章です。公開前に事実関係・日時・固有名詞に誤りがないか必ずご確認ください。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>アンカツMAP / アンカツ＋ 共通デザインルールに準拠した内製ツールです</footer>
+
+<script>
+const CAT_META = {
+  event:       { label:'イベント',     color:'var(--c-event)' },
+  akiya:       { label:'空き家',       color:'var(--c-akiya)' },
+  food:        { label:'飲食',         color:'var(--c-food)' },
+  facility:    { label:'施設',         color:'var(--c-facility)' },
+  sightseeing: { label:'観光',         color:'var(--c-sight)' },
+  notice:      { label:'お知らせ',     color:'var(--c-notice)' },
+  maintenance: { label:'メンテナンス', color:'var(--c-maint)' },
+  bousai:      { label:'防災',         color:'var(--c-bousai)' }
+};
+
+const TONE_LABEL = {
+  polite:   'です・ます調の、丁寧で落ち着いたトーン',
+  friendly: '親しみやすく、少しカジュアルなトーン（絵文字は使いすぎない）',
+  formal:   '硬めで公式なお知らせ・広報のようなトーン'
+};
+
+const genBtn = document.getElementById('generate-btn');
+const statusNote = document.getElementById('status-note');
+const memoInput = document.getElementById('memo-input');
+const catHintSelect = document.getElementById('cat-hint-select');
+const toneSelect = document.getElementById('tone-select');
+
+function setLoading(loading){
+  genBtn.disabled = loading;
+  genBtn.classList.toggle('loading', loading);
+  genBtn.querySelector('.btn-label').textContent = loading ? '生成中…' : '✨ AIで記事にする';
+}
+
+function buildPrompt(memo, catHint, tone){
+  const catList = Object.entries(CAT_META).map(([k,v]) => `${k}=${v.label}`).join(' / ');
+  const catInstruction = catHint === 'auto'
+    ? `カテゴリはメモの内容から最も適切なものを次の中から1つ選んでください: ${catList}`
+    : `カテゴリは固定で "${catHint}"（${CAT_META[catHint].label}）としてください。`;
+
+  return `あなたは兵庫県洲本市の地域メディア「アンカツ＋」の編集者です。淡路島・洲本城下町エリアの住民向けに、以下のメモをもとに記事を作成してください。
+
+【メモ】
+${memo}
+
+【厳守事項】
+- メモに書かれている情報のみを使ってください。日時・場所・金額・人数などメモに無い具体的な情報を勝手に創作してはいけません。
+- メモに書かれていない詳細が必要な場合は、断定せずぼかす（例:「詳細は主催者にお問い合わせください」）か、その項目自体を書かないでください。
+- 誇張した宣伝文句や、事実と異なる可能性のある表現は避けてください。
+- 文章のトーン: ${TONE_LABEL[tone]}
+- ${catInstruction}
+
+【出力形式】
+前置き・説明・コードブロック記号(\`\`\`)は一切つけず、次のJSON形式のみを出力してください。日本語で書いてください。
+
+{
+  "category": "${catHint === 'auto' ? 'event/akiya/food/facility/sightseeing/notice/maintenance/bousaiのいずれか' : catHint}",
+  "title": "記事タイトル（15〜28文字程度、読者の興味を引く見出し）",
+  "body": "記事本文（300〜500文字程度、2〜4段落程度に分けてよい）",
+  "sns": "SNS投稿用の短い文章（50文字以内、絵文字は多くても1〜2個）"
+}`;
+}
+
+async function callClaude(prompt){
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1000,
+      messages: [{ role: "user", content: prompt }]
+    })
+  });
+  if(!response.ok) throw new Error('API応答エラー: ' + response.status);
+  const data = await response.json();
+  const text = (data.content || []).map(b => b.text || '').join('');
+  const clean = text.replace(/```json|```/g, '').trim();
+  return JSON.parse(clean);
+}
+
+async function generate(){
+  const memo = memoInput.value.trim();
+  if(!memo){
+    statusNote.textContent = 'メモを入力してください';
+    statusNote.classList.add('error');
+    return;
+  }
+  statusNote.textContent = '';
+  statusNote.classList.remove('error');
+  setLoading(true);
+
+  try{
+    const prompt = buildPrompt(memo, catHintSelect.value, toneSelect.value);
+    const result = await callClaude(prompt);
+
+    const cat = CAT_META[result.category] ? result.category : 'event';
+    document.getElementById('cat-select').value = cat;
+    document.getElementById('out-title').value = result.title || '';
+    document.getElementById('out-body').value = result.body || '';
+    document.getElementById('out-sns').value = result.sns || '';
+
+    document.getElementById('result-empty').style.display = 'none';
+    document.getElementById('result-content').style.display = 'block';
+    statusNote.textContent = '✓ 下書きを生成しました。内容を確認・編集してください';
+  }catch(e){
+    console.error(e);
+    statusNote.textContent = '生成に失敗しました。もう一度お試しください（' + e.message + '）';
+    statusNote.classList.add('error');
+  }finally{
+    setLoading(false);
+  }
+}
+
+genBtn.addEventListener('click', generate);
+document.getElementById('regenerate-btn').addEventListener('click', generate);
+
+/* ---------- コピー ---------- */
+document.querySelectorAll('.copy-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const targetId = btn.dataset.copy;
+    const el = document.getElementById(targetId);
+    try{
+      await navigator.clipboard.writeText(el.value);
+      btn.textContent = '✓ コピー済';
+      btn.classList.add('copied');
+      setTimeout(()=>{ btn.textContent = 'コピー'; btn.classList.remove('copied'); }, 1800);
+    }catch(e){ /* クリップボード権限が無い場合は何もしない */ }
+  });
+});
+
+document.getElementById('copyall-btn').addEventListener('click', async () => {
+  const cat = CAT_META[document.getElementById('cat-select').value].label;
+  const text = `【${cat}】${document.getElementById('out-title').value}
+
+${document.getElementById('out-body').value}
+
+---
+SNS用: ${document.getElementById('out-sns').value}`;
+  try{
+    await navigator.clipboard.writeText(text);
+    const btn = document.getElementById('copyall-btn');
+    const original = btn.textContent;
+    btn.textContent = '✓ コピーしました';
+    setTimeout(()=>{ btn.textContent = original; }, 1800);
+  }catch(e){ /* noop */ }
+});
+</script>
+</body>
+</html>

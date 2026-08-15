@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アンカツ アイキャッチメーカー｜記事の画像を作る</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%96%BC%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700;900&family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --color-ink:#2a2420; --color-ink-sub:#776f66; --color-line:rgba(42,36,32,0.10);
+  --color-paper:#FFFDF9; --color-bg:#F3EFE7;
+  --radius-xl:22px; --radius-lg:16px; --radius-md:12px; --radius-sm:8px;
+  --shadow-soft:0 4px 18px rgba(42,36,32,0.12), 0 1px 3px rgba(42,36,32,0.08);
+  --shadow-hover:0 10px 26px rgba(42,36,32,0.18);
+  --ease:cubic-bezier(.4,0,.2,1);
+  --brand-accent:#2d6a4f; --brand-accent-dark:#1f4d39; --brand-tint:#d8f3dc;
+
+  --c-event:#1a73e8;   --c-event-dark:#1558b0;
+  --c-akiya:#FF9800;   --c-akiya-dark:#E9821C;
+  --c-food:#e64a4a;    --c-food-dark:#c92f2f;
+  --c-facility:#2d9d63;--c-facility-dark:#217a4c;
+  --c-sight:#8e5cd9;   --c-sight-dark:#6f3fb8;
+}
+*{box-sizing:border-box;}
+html,body{ margin:0; padding:0; font-family:'Noto Sans JP',sans-serif; color:var(--color-ink); background:var(--color-bg);
+  background-image:
+    radial-gradient(circle at 15% 8%, rgba(45,106,79,0.05), transparent 45%),
+    radial-gradient(circle at 85% 90%, rgba(233,130,28,0.05), transparent 45%);
+  min-height:100vh;
+}
+.font-display{ font-family:'Noto Serif JP','Zen Kaku Gothic New',sans-serif; }
+
+/* ---------- ヘッダー ---------- */
+header{ padding:22px 24px 16px; text-align:center; }
+header .eyebrow{ font-size:11px; font-weight:700; letter-spacing:.14em; color:var(--brand-accent-dark); text-transform:uppercase; }
+header h1{ font-family:'Noto Serif JP',serif; font-weight:900; font-size:22px; margin:4px 0 6px; letter-spacing:.02em; }
+header p{ font-size:12.5px; color:var(--color-ink-sub); margin:0; }
+
+/* ---------- レイアウト ---------- */
+#app{ max-width:1180px; margin:0 auto; padding:8px 20px 60px; display:grid; grid-template-columns: 380px 1fr; gap:22px; align-items:start; }
+@media (max-width: 900px){ #app{ grid-template-columns: 1fr; } }
+
+.panel{ background:var(--color-paper); border:1px solid var(--color-line); border-radius:var(--radius-xl); box-shadow:var(--shadow-soft); padding:20px 20px 22px; }
+.panel + .panel{ margin-top:16px; }
+.panel h2{ font-family:'Zen Kaku Gothic New',sans-serif; font-size:13px; font-weight:900; margin:0 0 14px; display:flex; align-items:center; gap:6px; color:var(--color-ink); }
+.panel h2 .num{ display:inline-flex; align-items:center; justify-content:center; width:19px; height:19px; border-radius:50%; background:var(--brand-accent); color:#fff; font-size:10.5px; font-weight:800; }
+
+label.field-label{ display:block; font-size:11.5px; font-weight:700; color:var(--color-ink-sub); margin:14px 0 6px; }
+label.field-label:first-of-type{ margin-top:0; }
+input[type=text], textarea, select{
+  width:100%; border:1.5px solid var(--color-line); border-radius:var(--radius-sm); padding:9px 11px; font-family:inherit; font-size:13px; color:var(--color-ink); background:#fff; outline:none; transition: border-color .15s;
+}
+input[type=text]:focus, textarea:focus{ border-color:var(--brand-accent); }
+textarea{ resize:vertical; min-height:52px; line-height:1.5; }
+.hint{ font-size:10.5px; color:#9a9186; margin-top:5px; }
+
+/* カテゴリ選択 */
+#cat-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:7px; }
+.cat-btn{ border:2px solid transparent; background:rgba(0,0,0,0.03); border-radius:var(--radius-md); padding:9px 4px 7px; text-align:center; cursor:pointer; transition: transform .15s, border-color .15s; }
+.cat-btn:hover{ transform:translateY(-2px); }
+.cat-btn .em{ font-size:17px; display:block; margin-bottom:3px; }
+.cat-btn .lb{ font-size:9.5px; font-weight:700; color:var(--color-ink-sub); }
+.cat-btn.active{ border-color: var(--cc); background: color-mix(in srgb, var(--cc) 12%, white); }
+.cat-btn.active .lb{ color: var(--cc); }
+
+/* 写真アップロード */
+#photo-drop{ border:1.5px dashed #cabfaf; border-radius:var(--radius-md); padding:16px; text-align:center; cursor:pointer; font-size:12px; color:var(--color-ink-sub); transition:border-color .15s, background .15s; position:relative; }
+#photo-drop:hover{ border-color:var(--brand-accent); background:rgba(45,106,79,0.03); }
+#photo-drop.has-photo{ padding:0; border-style:solid; overflow:hidden; }
+#photo-preview{ width:100%; height:110px; object-fit:cover; display:block; }
+#photo-remove{ display:none; margin-top:8px; font-size:11px; font-weight:700; color:var(--c-food-dark); background:none; border:none; cursor:pointer; padding:0; }
+#photo-remove.show{ display:inline-block; }
+#photo-input{ display:none; }
+
+/* サイズ */
+#usage-tabs{ display:flex; gap:7px; }
+.size-tab{ flex:1; border:1.5px solid var(--color-line); border-radius:var(--radius-md); padding:10px 6px; text-align:center; cursor:pointer; font-size:12px; font-weight:700; color:var(--color-ink-sub); background:#fff; }
+.size-tab.active{ border-color:var(--brand-accent); color:var(--brand-accent-dark); background:var(--brand-tint); }
+
+#orient-row{ display:flex; gap:7px; margin-top:8px; }
+.orient-tab{ flex:1; border:1.5px solid var(--color-line); border-radius:var(--radius-md); padding:8px 6px; text-align:center; cursor:pointer; font-size:12px; font-weight:700; color:var(--color-ink-sub); background:rgba(0,0,0,0.02); }
+.orient-tab.active{ border-color:var(--c-akiya-dark); color:var(--c-akiya-dark); background:var(--c-akiya-tint,rgba(255,152,0,0.10)); }
+
+/* ---------- 縦チラシ挿入 ---------- */
+#inset-drop{ border:1.5px dashed #cabfaf; border-radius:var(--radius-md); padding:16px; text-align:center; cursor:pointer; font-size:12px; color:var(--color-ink-sub); transition:border-color .15s, background .15s; position:relative; }
+#inset-drop:hover{ border-color:var(--brand-accent); background:rgba(45,106,79,0.03); }
+#inset-drop.has-photo{ padding:8px; border-style:solid; }
+#inset-preview{ max-width:100%; max-height:130px; display:block; margin:0 auto; border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.18); }
+#inset-remove{ display:none; margin-top:8px; font-size:11px; font-weight:700; color:var(--c-food-dark); background:none; border:none; cursor:pointer; padding:0; }
+#inset-remove.show{ display:inline-block; }
+#inset-input{ display:none; }
+.inset-opts{ display:flex; gap:7px; margin-top:10px; }
+.inset-opt{ flex:1; border:1.5px solid var(--color-line); border-radius:var(--radius-md); padding:8px 6px; text-align:center; cursor:pointer; font-size:11.5px; font-weight:700; color:var(--color-ink-sub); background:#fff; }
+.inset-opt.active{ border-color:var(--brand-accent); color:var(--brand-accent-dark); background:var(--brand-tint); }
+
+/* スライダー */
+.slider-row{ display:flex; align-items:center; gap:10px; margin-top:12px; }
+.slider-row label{ font-size:11px; color:var(--color-ink-sub); font-weight:700; width:78px; flex-shrink:0; }
+input[type=range]{ flex:1; accent-color:var(--brand-accent); }
+
+/* ---------- プレビュー側 ---------- */
+#preview-wrap{ position:sticky; top:20px; display:flex; flex-direction:column; align-items:center; gap:16px; }
+#canvas-shell{ background:var(--color-paper); border-radius:var(--radius-xl); box-shadow:var(--shadow-hover); padding:16px; width:100%; }
+#canvas-frame{ width:100%; border-radius:var(--radius-md); overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.12); background:#eee; }
+canvas{ display:block; width:100%; height:auto; }
+
+#dl-row{ display:flex; gap:10px; width:100%; }
+.btn{ flex:1; border:none; border-radius:24px; padding:13px 16px; font-size:13px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; transition: filter .15s, transform .15s; font-family:'Zen Kaku Gothic New',sans-serif; }
+.btn:active{ transform:scale(0.97); }
+.btn-primary{ background:var(--brand-accent); color:#fff; }
+.btn-primary:hover{ filter:brightness(1.08); }
+.btn-ghost{ background:rgba(0,0,0,0.05); color:var(--color-ink); }
+.btn-ghost:hover{ background:rgba(0,0,0,0.08); }
+
+#status-note{ font-size:11px; color:var(--color-ink-sub); text-align:center; min-height:14px; }
+
+footer{ text-align:center; padding:10px 20px 30px; font-size:10.5px; color:#a89f93; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">アンカツ＋ 編集部ツール</div>
+  <h1 class="font-display">🖼️ アイキャッチメーカー</h1>
+  <p>写真とタイトルを入れるだけで、カテゴリに合わせたアイキャッチ画像を作れます</p>
+</header>
+
+<div id="app">
+  <!-- ============ 左：入力パネル ============ -->
+  <div id="controls">
+
+    <div class="panel">
+      <h2><span class="num">1</span>カテゴリを選ぶ</h2>
+      <div id="cat-grid"></div>
+      <p class="hint">色と背景の和柄が自動で切り替わります</p>
+
+      <label class="field-label">バッジのアイコン（絵文字・自由入力）</label>
+      <input type="text" id="icon-input" maxlength="4" value="🎉">
+      <label class="field-label">バッジの文字（自由入力）</label>
+      <input type="text" id="label-input" maxlength="12" value="イベント">
+      <p class="hint">カテゴリを選ぶと初期値が入ります。書き換えれば独自の表記にできます</p>
+    </div>
+
+    <div class="panel">
+      <h2><span class="num">2</span>テキストを入力</h2>
+      <label class="field-label">記事タイトル</label>
+      <textarea id="title-input" maxlength="60" placeholder="例：洲本城下町マルシェ、8月開催">洲本城下町マルシェ、8月開催</textarea>
+      <label class="field-label">サブテキスト（日付・場所など／任意）</label>
+      <input type="text" id="sub-input" maxlength="40" placeholder="例：2026.08.09 本町商店街アーケード" value="2026.08.09 本町商店街アーケード">
+    </div>
+
+    <div class="panel">
+      <h2><span class="num">3</span>写真を追加（任意）</h2>
+      <div id="photo-drop">
+        <img id="photo-preview" style="display:none;">
+        <span id="photo-drop-label">タップして写真を選択<br><span class="hint" style="margin-top:4px;display:block;">無しの場合はカテゴリの和柄背景になります</span></span>
+      </div>
+      <input type="file" id="photo-input" accept="image/*">
+      <button id="photo-remove">✕ 写真を外す</button>
+
+      <label class="field-label">背景の濃さ（文字の読みやすさ調整）</label>
+      <div class="slider-row">
+        <label>暗さ</label>
+        <input type="range" id="overlay-slider" min="0" max="80" value="40">
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2><span class="num">5</span>縦のチラシを挿入（任意）</h2>
+      <p class="hint" style="margin-top:0;">別途作成済みのチラシ画像を、アイキャッチの中にカード状に差し込めます</p>
+      <div id="inset-drop">
+        <img id="inset-preview" style="display:none;">
+        <span id="inset-drop-label">タップしてチラシ画像を選択</span>
+      </div>
+      <input type="file" id="inset-input" accept="image/*">
+      <button id="inset-remove">✕ チラシを外す</button>
+
+      <label class="field-label">挿入位置</label>
+      <div class="inset-opts" id="inset-side-opts">
+        <div class="inset-opt active" data-side="right">右寄せ</div>
+        <div class="inset-opt" data-side="left">左寄せ</div>
+      </div>
+
+      <label class="field-label">チラシの大きさ</label>
+      <div class="slider-row">
+        <label>サイズ</label>
+        <input type="range" id="inset-scale-slider" min="25" max="100" value="55">
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2><span class="num">6</span>サイズを選ぶ</h2>
+      <div id="usage-tabs">
+        <div class="size-tab active" data-usage="eyecatch">アイキャッチ</div>
+        <div class="size-tab" data-usage="square">正方形</div>
+      </div>
+      <div id="orient-row">
+        <div class="orient-tab active" data-orient="h">▭ 横</div>
+        <div class="orient-tab" data-orient="v">▯ 縦</div>
+      </div>
+      <p class="hint" id="size-dim-hint">1200 × 630 px</p>
+    </div>
+
+  </div>
+
+  <!-- ============ 右：プレビュー ============ -->
+  <div id="preview-wrap">
+    <div id="canvas-shell">
+      <div id="canvas-frame">
+        <canvas id="art-canvas"></canvas>
+      </div>
+    </div>
+    <div id="dl-row">
+      <button class="btn btn-ghost" id="regen-btn">🔄 和柄をシャッフル</button>
+      <button class="btn btn-primary" id="dl-btn">⬇ 画像をダウンロード</button>
+    </div>
+    <div id="status-note"></div>
+  </div>
+</div>
+
+<footer>アンカツMAP / アンカツ＋ 共通デザインルールに準拠した内製ツールです</footer>
+
+<script>
+/* =========================================================================
+   カテゴリ定義（ankatsu-map.html の CATS と対応、和柄パターンを追加）
+   ========================================================================= */
+const CATS = {
+  event:       { label:'イベント',   emoji:'🎉', color:'#1a73e8', dark:'#1558b0', pattern:'asanoha' },
+  akiya:       { label:'空き家',     emoji:'🏠', color:'#FF9800', dark:'#E9821C', pattern:'ichimatsu' },
+  food:        { label:'飲食',       emoji:'🍴', color:'#e64a4a', dark:'#c92f2f', pattern:'seigaiha' },
+  facility:    { label:'施設',       emoji:'🏛️', color:'#2d9d63', dark:'#217a4c', pattern:'koushi' },
+  sightseeing: { label:'観光',       emoji:'⛩️', color:'#8e5cd9', dark:'#6f3fb8', pattern:'shippo' },
+  notice:      { label:'お知らせ',   emoji:'📢', color:'#0ea5e9', dark:'#0369a1', pattern:'sayagata' },
+  maintenance: { label:'メンテナンス', emoji:'🔧', color:'#6b7280', dark:'#4b5563', pattern:'kagome' },
+  bousai:      { label:'防災',       emoji:'🚨', color:'#f59e0b', dark:'#b45309', pattern:'yabane' }
+};
+
+let state = {
+  cat: 'event',
+  title: document.getElementById('title-input').value,
+  sub: document.getElementById('sub-input').value,
+  badgeIcon: CATS.event.emoji,
+  badgeLabel: CATS.event.label,
+  photo: null,       // Image オブジェクト
+  overlay: 40,        // 0-80
+  usage: 'eyecatch', orient: 'h',
+  w: 1200, h: 630,
+  seed: Math.random(),
+  insetPhoto: null,   // 挿入する縦チラシの Image オブジェクト
+  insetSide: 'right', // 'right' | 'left'
+  insetScale: 55       // 縦チラシの高さが挿入可能領域に占める割合（%）
+};
+
+/* ---------- カテゴリボタン生成 ---------- */
+const catGrid = document.getElementById('cat-grid');
+Object.entries(CATS).forEach(([key, c]) => {
+  const btn = document.createElement('div');
+  btn.className = 'cat-btn' + (key===state.cat ? ' active' : '');
+  btn.style.setProperty('--cc', c.color);
+  btn.dataset.cat = key;
+  btn.innerHTML = `<span class="em">${c.emoji}</span><span class="lb">${c.label}</span>`;
+  btn.addEventListener('click', () => {
+    state.cat = key;
+    state.badgeIcon = c.emoji;
+    state.badgeLabel = c.label;
+    document.getElementById('icon-input').value = c.emoji;
+    document.getElementById('label-input').value = c.label;
+    document.querySelectorAll('.cat-btn').forEach(b=>b.classList.toggle('active', b.dataset.cat===key));
+    render();
+  });
+  catGrid.appendChild(btn);
+});
+
+document.getElementById('icon-input').addEventListener('input', e => { state.badgeIcon = e.target.value; render(); });
+document.getElementById('label-input').addEventListener('input', e => { state.badgeLabel = e.target.value; render(); });
+
+/* ---------- テキスト入力 ---------- */
+document.getElementById('title-input').addEventListener('input', e => { state.title = e.target.value; render(); });
+document.getElementById('sub-input').addEventListener('input', e => { state.sub = e.target.value; render(); });
+
+/* ---------- 写真アップロード ---------- */
+const photoDrop = document.getElementById('photo-drop');
+const photoInput = document.getElementById('photo-input');
+const photoPreview = document.getElementById('photo-preview');
+const photoRemoveBtn = document.getElementById('photo-remove');
+const photoLabel = document.getElementById('photo-drop-label');
+
+photoDrop.addEventListener('click', () => photoInput.click());
+photoInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      state.photo = img;
+      photoPreview.src = ev.target.result;
+      photoPreview.style.display = 'block';
+      photoLabel.style.display = 'none';
+      photoDrop.classList.add('has-photo');
+      photoRemoveBtn.classList.add('show');
+      render();
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+photoRemoveBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  state.photo = null;
+  photoInput.value = '';
+  photoPreview.style.display = 'none';
+  photoLabel.style.display = 'block';
+  photoDrop.classList.remove('has-photo');
+  photoRemoveBtn.classList.remove('show');
+  render();
+});
+
+/* ---------- 縦チラシ挿入 ---------- */
+const insetDrop = document.getElementById('inset-drop');
+const insetInput = document.getElementById('inset-input');
+const insetPreview = document.getElementById('inset-preview');
+const insetRemoveBtn = document.getElementById('inset-remove');
+const insetLabel = document.getElementById('inset-drop-label');
+
+insetDrop.addEventListener('click', () => insetInput.click());
+insetInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      state.insetPhoto = img;
+      insetPreview.src = ev.target.result;
+      insetPreview.style.display = 'block';
+      insetLabel.style.display = 'none';
+      insetDrop.classList.add('has-photo');
+      insetRemoveBtn.classList.add('show');
+      render();
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+insetRemoveBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  state.insetPhoto = null;
+  insetInput.value = '';
+  insetPreview.style.display = 'none';
+  insetLabel.style.display = 'block';
+  insetDrop.classList.remove('has-photo');
+  insetRemoveBtn.classList.remove('show');
+  render();
+});
+
+document.querySelectorAll('#inset-side-opts .inset-opt').forEach(opt => {
+  opt.addEventListener('click', () => {
+    document.querySelectorAll('#inset-side-opts .inset-opt').forEach(o=>o.classList.remove('active'));
+    opt.classList.add('active');
+    state.insetSide = opt.dataset.side;
+    render();
+  });
+});
+
+document.getElementById('inset-scale-slider').addEventListener('input', e => { state.insetScale = Number(e.target.value); render(); });
+
+/* ---------- 背景の濃さ ---------- */
+document.getElementById('overlay-slider').addEventListener('input', e => { state.overlay = Number(e.target.value); render(); });
+
+/* ---------- サイズ：用途ごとに縦横それぞれ専用の比率を持たせる（単純な幅高さ入れ替えはしない） ---------- */
+const SIZE_MAP = {
+  eyecatch: { h:{w:1200, h:630},  v:{w:1080, h:1350} }, // 横=OGP比、縦=4:5（自然な縦アイキャッチ）
+  square:   { h:{w:1080, h:1080}, v:{w:1080, h:1080} }
+};
+
+function applySize(){
+  const d = SIZE_MAP[state.usage][state.orient];
+  state.w = d.w; state.h = d.h;
+  document.getElementById('size-dim-hint').textContent = `${d.w} × ${d.h} px`;
+}
+
+document.querySelectorAll('.size-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.size-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    state.usage = tab.dataset.usage;
+    document.getElementById('orient-row').style.display = (state.usage==='square') ? 'none' : 'flex';
+    applySize();
+    render();
+  });
+});
+
+document.querySelectorAll('.orient-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.orient-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    state.orient = tab.dataset.orient;
+    applySize();
+    render();
+  });
+});
+
+/* ---------- 和柄シャッフル ---------- */
+document.getElementById('regen-btn').addEventListener('click', () => {
+  state.seed = Math.random();
+  render();
+});
+
+/* =========================================================================
+   和柄パターン描画（category ごとに伝統文様を生成）
+   ========================================================================= */
+function hexToRgb(hex){
+  const m = hex.replace('#','');
+  return [parseInt(m.substr(0,2),16), parseInt(m.substr(2,2),16), parseInt(m.substr(4,2),16)];
+}
+function rgba(hex, a){ const [r,g,b]=hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; }
+
+/* 麻の葉（六角形の星型格子）: イベント */
+function drawAsanoha(ctx, w, h, color){
+  const s = 46;
+  ctx.strokeStyle = rgba(color, 0.16);
+  ctx.lineWidth = 1.4;
+  const rows = Math.ceil(h/(s*0.87))+2, cols = Math.ceil(w/s)+2;
+  for(let ry=-1; ry<rows; ry++){
+    for(let rx=-1; rx<cols; rx++){
+      const offsetX = (ry%2===0) ? 0 : s/2;
+      const cx = rx*s + offsetX, cy = ry*s*0.87;
+      ctx.beginPath();
+      for(let i=0;i<6;i++){
+        const a = Math.PI/3*i - Math.PI/6;
+        const px = cx + Math.cos(a)*s*0.58, py = cy + Math.sin(a)*s*0.58;
+        i===0 ? ctx.moveTo(px,py) : ctx.lineTo(px,py);
+      }
+      ctx.closePath(); ctx.stroke();
+      for(let i=0;i<6;i++){
+        const a = Math.PI/3*i - Math.PI/6;
+        ctx.beginPath(); ctx.moveTo(cx,cy);
+        ctx.lineTo(cx+Math.cos(a)*s*0.58, cy+Math.sin(a)*s*0.58);
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+/* 市松（チェッカー）: 空き家＝「埋まっている/空いている」の対比 */
+function drawIchimatsu(ctx, w, h, color){
+  const s = 54;
+  const cols = Math.ceil(w/s)+1, rows = Math.ceil(h/s)+1;
+  for(let ry=0; ry<rows; ry++){
+    for(let rx=0; rx<cols; rx++){
+      if((rx+ry)%2===0){
+        ctx.fillStyle = rgba(color, 0.10);
+        ctx.fillRect(rx*s, ry*s, s, s);
+      }
+    }
+  }
+}
+
+/* 青海波（波の同心円）: 飲食 */
+function drawSeigaiha(ctx, w, h, color){
+  const r = 40;
+  ctx.strokeStyle = rgba(color, 0.20);
+  ctx.lineWidth = 2;
+  const cols = Math.ceil(w/r)+2, rows = Math.ceil(h/(r*0.7))+2;
+  for(let ry=0; ry<rows; ry++){
+    for(let rx=-1; rx<cols; rx++){
+      const cx = rx*r + (ry%2===0?0:r/2), cy = ry*r*0.7;
+      for(let k=3;k>=1;k--){
+        ctx.beginPath();
+        ctx.arc(cx, cy, r*0.32*k, Math.PI, Math.PI*2);
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+/* 格子（縦横ライン）: 施設 */
+function drawKoushi(ctx, w, h, color){
+  const s = 42;
+  ctx.strokeStyle = rgba(color, 0.16);
+  ctx.lineWidth = 1.6;
+  for(let x=0; x<w+s; x+=s){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+  for(let y=0; y<h+s; y+=s){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+}
+
+/* 七宝（円が連なる文様）: 観光 */
+function drawShippo(ctx, w, h, color){
+  const r = 34;
+  ctx.strokeStyle = rgba(color, 0.20);
+  ctx.lineWidth = 1.6;
+  const cols = Math.ceil(w/r)+2, rows = Math.ceil(h/r)+2;
+  for(let ry=-1; ry<rows; ry++){
+    for(let rx=-1; rx<cols; rx++){
+      const cx = rx*r*1.0, cy = ry*r*1.0;
+      ctx.beginPath(); ctx.arc(cx, cy, r*0.72, 0, Math.PI*2); ctx.stroke();
+    }
+  }
+}
+
+/* 紗綾形（連続する卍つなぎ）: お知らせ＝格式ある告知の雰囲気 */
+function drawSayagata(ctx, w, h, color){
+  const s = 30;
+  ctx.strokeStyle = rgba(color, 0.20);
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'square';
+  const cols = Math.ceil(w/s)+2, rows = Math.ceil(h/s)+2;
+  for(let ry=-1; ry<rows; ry++){
+    for(let rx=-1; rx<cols; rx++){
+      const x = rx*s, y = ry*s;
+      ctx.beginPath();
+      ctx.moveTo(x, y+s*0.5); ctx.lineTo(x+s*0.5, y+s*0.5);
+      ctx.lineTo(x+s*0.5, y); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x+s*0.5, y+s); ctx.lineTo(x+s, y+s);
+      ctx.lineTo(x+s, y+s*0.5); ctx.stroke();
+    }
+  }
+}
+
+/* 籠目（六角形の編み目）: メンテナンス＝構造・組み立ての雰囲気 */
+function drawKagome(ctx, w, h, color){
+  const s = 26;
+  ctx.strokeStyle = rgba(color, 0.22);
+  ctx.lineWidth = 1.4;
+  const cols = Math.ceil(w/s)+2, rows = Math.ceil(h/(s*1.73))+2;
+  for(let ry=-1; ry<rows; ry++){
+    for(let rx=-1; rx<cols; rx++){
+      const offsetY = (rx%2===0) ? 0 : s*0.87;
+      const x = rx*s*1.5, y = ry*s*1.73 + offsetY;
+      [[0,1],[1,0],[1,1],[0,-1],[-1,0],[-1,-1]].forEach(([dx,dy])=>{
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x+dx*s*0.87, y+dy*s*0.87);
+        ctx.stroke();
+      });
+    }
+  }
+}
+
+/* 矢羽根（矢の羽根が並ぶ文様）: 防災＝方向性・避難導線を連想 */
+function drawYabane(ctx, w, h, color){
+  const s = 46;
+  ctx.strokeStyle = rgba(color, 0.22);
+  ctx.lineWidth = 1.6;
+  const cols = Math.ceil(w/s)+3, rows = Math.ceil(h/(s*0.5))+3;
+  for(let ry=-1; ry<rows; ry++){
+    for(let rx=-1; rx<cols; rx++){
+      const offsetX = (ry%2===0) ? 0 : s/2;
+      const x = rx*s + offsetX, y = ry*s*0.5;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x+s*0.5, y+s*0.28);
+      ctx.lineTo(x+s*0.5, y+s*0.5);
+      ctx.stroke();
+    }
+  }
+}
+
+const PATTERNS = { asanoha:drawAsanoha, ichimatsu:drawIchimatsu, seigaiha:drawSeigaiha, koushi:drawKoushi, shippo:drawShippo, sayagata:drawSayagata, kagome:drawKagome, yabane:drawYabane };
+
+/* うっすら紙の粒子ノイズ（生成AIっぽい均一グラデを避け、印刷物っぽい質感に） */
+function drawGrain(ctx, w, h, seed){
+  let s = seed*100000;
+  function rnd(){ s = (s*9301+49297)%233280; return s/233280; }
+  ctx.save();
+  ctx.globalAlpha = 0.05;
+  for(let i=0;i<900;i++){
+    const x = rnd()*w, y = rnd()*h, r = rnd()*1.2+0.2;
+    ctx.fillStyle = rnd()>0.5 ? '#000' : '#fff';
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* =========================================================================
+   写真の cover フィット描画
+   ========================================================================= */
+function drawImageCover(ctx, img, x, y, w, h){
+  const ir = img.width/img.height, tr = w/h;
+  let sw, sh, sx, sy;
+  if(ir > tr){ sh = img.height; sw = sh*tr; sx = (img.width-sw)/2; sy = 0; }
+  else{ sw = img.width; sh = sw/tr; sx = 0; sy = (img.height-sh)/2; }
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+}
+
+/* 写真の contain フィット描画（全体を切らずに収める。x,y,w,h は収める枠） */
+function drawImageContain(ctx, img, x, y, w, h){
+  const ir = img.width/img.height, tr = w/h;
+  let dw, dh;
+  if(ir > tr){ dw = w; dh = w/ir; } else { dh = h; dw = h*ir; }
+  const dx = x + (w-dw)/2, dy = y + (h-dh)/2;
+  ctx.drawImage(img, dx, dy, dw, dh);
+}
+
+/* テキスト折り返し */
+function wrapText(ctx, text, maxWidth){
+  const chars = text.split('');
+  const lines = [];
+  let cur = '';
+  chars.forEach(ch => {
+    const test = cur + ch;
+    if(ctx.measureText(test).width > maxWidth && cur){
+      lines.push(cur); cur = ch;
+    } else { cur = test; }
+  });
+  if(cur) lines.push(cur);
+  return lines;
+}
+
+/* =========================================================================
+   メイン描画
+   ========================================================================= */
+const canvas = document.getElementById('art-canvas');
+const ctx = canvas.getContext('2d');
+
+function render(){
+  const c = CATS[state.cat];
+  const w = state.w, h = state.h;
+  canvas.width = w; canvas.height = h;
+
+  // 縦長・横長どちらでも文字サイズが破綻しないよう、幅と高さの幾何平均を基準にする
+  const S = Math.sqrt(w*h);
+
+  // ---- 背景：写真 or 和柄 ----
+  if(state.photo){
+    drawImageCover(ctx, state.photo, 0, 0, w, h);
+
+    // 下にいくほど白くフェードするグラデーション（スライダーでフェード開始位置と濃さを調整）
+    const fadeStart = h * (0.78 - state.overlay/100*0.42); // overlay大 = フェード開始が上に
+    const grad = ctx.createLinearGradient(0, fadeStart, 0, h);
+    grad.addColorStop(0, 'rgba(255,253,249,0)');
+    grad.addColorStop(1, `rgba(255,253,249,${0.55 + state.overlay/100*0.42})`);
+    ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
+  } else {
+    ctx.fillStyle = '#FFFDF9';
+    ctx.fillRect(0,0,w,h);
+    const grad = ctx.createLinearGradient(0,0,w,h);
+    grad.addColorStop(0, rgba(c.color, 0.13));
+    grad.addColorStop(1, rgba(c.color, 0.02));
+    ctx.fillStyle = grad; ctx.fillRect(0,0,w,h);
+
+    PATTERNS[c.pattern](ctx, w, h, c.color);
+    drawGrain(ctx, w, h, state.seed);
+
+    // 下部にタイトル可読性用の白帯
+    const grad2 = ctx.createLinearGradient(0,h*0.55,0,h);
+    grad2.addColorStop(0,'rgba(255,253,249,0)');
+    grad2.addColorStop(1,`rgba(255,253,249,${0.55+state.overlay/100*0.4})`);
+    ctx.fillStyle = grad2; ctx.fillRect(0,0,w,h);
+  }
+
+  // 白フェードの上に乗るテキストは常に濃色でOK（写真部分にかかるバッジ／ブランド表記だけ個別に処理）
+  const textColor = '#2a2420';
+  const subColor  = '#4a423a';
+
+  const pad = S*0.075;
+
+  // ---- カテゴリバッジ（常に色チップなので背景を選ばず視認可） ----
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.font = `800 ${Math.round(S*0.026)}px 'Zen Kaku Gothic New', sans-serif`;
+  const badgeText = `${state.badgeIcon}  ${state.badgeLabel}`;
+  const badgeMetrics = ctx.measureText(badgeText);
+  const badgeH = S*0.062;
+  const badgeW = badgeMetrics.width + S*0.05;
+  const badgeY = pad;
+  ctx.fillStyle = c.color;
+  roundRect(ctx, pad, badgeY, badgeW, badgeH, badgeH/2);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.fillText(badgeText, pad + S*0.025, badgeY + badgeH/2 + S*0.002);
+
+  // ---- ブランド表記（右上・写真の上でも読めるよう小さなピル背景を敷く） ----
+  ctx.font = `700 ${Math.round(S*0.018)}px 'Zen Kaku Gothic New', sans-serif`;
+  const brandText = 'アンカツ＋';
+  const brandMetrics = ctx.measureText(brandText);
+  const brandPadX = S*0.018;
+  const brandW = brandMetrics.width + brandPadX*2;
+  const brandH = S*0.038;
+  ctx.fillStyle = state.photo ? 'rgba(20,16,12,0.42)' : rgba(c.dark, 0.10);
+  roundRect(ctx, w-pad-brandW, badgeY + badgeH/2 - brandH/2, brandW, brandH, brandH/2);
+  ctx.fill();
+  ctx.fillStyle = state.photo ? 'rgba(255,255,255,0.92)' : c.dark;
+  ctx.textAlign = 'right';
+  ctx.fillText(brandText, w-pad-brandPadX, badgeY + badgeH/2 + S*0.001);
+  ctx.textAlign = 'left';
+
+  // ---- 縦のチラシ挿入（任意）：バッジ下から下端まで、縦帯としてカード状に配置 ----
+  let cardX = 0, cardY = 0, cardW = 0, cardH = 0;
+  const hasInset = !!state.insetPhoto;
+  if(hasInset){
+    const img = state.insetPhoto;
+    const imgRatio = img.width / img.height; // 縦長なら 1 未満
+
+    const areaTop = badgeY + badgeH + pad*0.5;
+    const availH = h - areaTop - pad;
+
+    cardH = Math.max(availH * (state.insetScale/100), S*0.1);
+    cardW = cardH * imgRatio;
+    const maxW = w*0.62;
+    if(cardW > maxW){ cardW = maxW; cardH = cardW / imgRatio; }
+    if(cardH > availH){ cardH = availH; cardW = cardH * imgRatio; }
+
+    cardX = state.insetSide === 'right' ? (w - pad - cardW) : pad;
+    cardY = areaTop + (availH - cardH); // 下端をそろえて配置
+  }
+
+  // ---- タイトル用のテキスト幅（チラシがある側は避けて反対側に収める） ----
+  const textPad = hasInset && state.insetSide === 'left' ? (cardX + cardW + pad*0.6) : pad;
+  const maxTextWidth = hasInset
+    ? (state.insetSide === 'right' ? (cardX - pad*0.6 - textPad) : (w - pad - textPad))
+    : (w - pad*2);
+
+  ctx.textBaseline = 'alphabetic';
+  const titleSize = Math.round(S * (state.title.length > 22 ? 0.062 : 0.074));
+  ctx.font = `900 ${titleSize}px 'Noto Serif JP', serif`;
+  const lines = wrapText(ctx, state.title || 'タイトルを入力してください', Math.max(maxTextWidth, S*0.2)).slice(0,3);
+  const lineHeight = titleSize * 1.34;
+  const titleBottom = h - pad - (state.sub ? S*0.075 : 0);
+  const startY = titleBottom - lineHeight*(lines.length-1);
+  const ascent = titleSize*0.86, descent = titleSize*0.18;
+  const barTop = startY - ascent;
+  const barBottom = startY + lineHeight*(lines.length-1) + descent;
+
+  // ---- チラシカードの描画（写真として貼り付けたような台紙＋影） ----
+  if(hasInset){
+    ctx.save();
+    ctx.shadowColor = 'rgba(20,16,12,0.35)';
+    ctx.shadowBlur = S*0.018;
+    ctx.shadowOffsetY = S*0.008;
+    ctx.fillStyle = '#fff';
+    const bp = S*0.007;
+    roundRect(ctx, cardX-bp, cardY-bp, cardW+bp*2, cardH+bp*2, S*0.005);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    roundRect(ctx, cardX, cardY, cardW, cardH, S*0.003);
+    ctx.clip();
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(cardX, cardY, cardW, cardH);
+    drawImageContain(ctx, state.insetPhoto, cardX, cardY, cardW, cardH);
+    ctx.restore();
+  }
+
+  // ---- タイトル ----
+  ctx.fillStyle = textColor;
+  lines.forEach((line, i) => {
+    ctx.fillText(line, textPad, startY + i*lineHeight);
+  });
+
+  // ---- サブテキスト ----
+  if(state.sub){
+    ctx.font = `600 ${Math.round(S*0.027)}px 'Noto Sans JP', sans-serif`;
+    ctx.fillStyle = subColor;
+    ctx.fillText(state.sub, textPad, h - pad);
+  }
+
+  // ---- アクセントの縦線（見出し脇。alphabeticベースラインに合わせて上端=ascent分だけ上、下端=最終行のdescent分だけ下） ----
+  ctx.fillStyle = c.color;
+  ctx.fillRect(textPad - S*0.028, barTop, S*0.009, barBottom - barTop);
+}
+
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+/* =========================================================================
+   ダウンロード
+   ========================================================================= */
+document.getElementById('dl-btn').addEventListener('click', () => {
+  const link = document.createElement('a');
+  const catLabel = state.badgeLabel || CATS[state.cat].label;
+  const safe = (state.title || 'eyecatch').replace(/[\\/:*?"<>|]/g,'').slice(0,20);
+  link.download = `ankatsu_${catLabel}_${safe}_${state.w}x${state.h}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  const note = document.getElementById('status-note');
+  note.textContent = '✓ ダウンロードしました';
+  setTimeout(()=>{ note.textContent=''; }, 2500);
+});
+
+/* Google Fonts 読み込み待ってから初回描画（文字化け防止） */
+if(document.fonts && document.fonts.ready){
+  document.fonts.load("900 40px 'Noto Serif JP'");
+  document.fonts.load("800 20px 'Zen Kaku Gothic New'");
+  document.fonts.ready.then(render);
+}
+render();
+window.addEventListener('resize', render);
+</script>
+</body>
+</html>
