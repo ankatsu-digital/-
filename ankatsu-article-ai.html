@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>アンカツ 記事AIメーカー｜メモから記事にする</title>
+<title>アンカツ 記事メーカー｜メモから記事にする</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%9D%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700;900&family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
@@ -261,6 +261,7 @@ ${memo}
 
 【出力形式】
 前置き・説明・コードブロック記号(\`\`\`)は一切つけず、次のJSON形式のみを出力してください。日本語で書いてください。
+本文中で段落を分けたい場合は、生の改行ではなく必ず \\n （バックスラッシュ+n）で表現してください。
 
 {
   "category": "${catHint === 'auto' ? 'event/akiya/food/facility/sightseeing/notice/maintenance/bousaiのいずれか' : catHint}",
@@ -297,7 +298,29 @@ async function callAI(prompt){
   const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
   if(!text) throw new Error('AIからの応答が空でした（内容がブロックされた可能性があります）');
   const clean = text.replace(/```json|```/g, '').trim();
-  return JSON.parse(clean);
+  return JSON.parse(sanitizeJsonStrings(clean));
+}
+
+/* AIが生成したJSONの文字列値の中に、生の改行/タブなどの制御文字が
+   そのまま混ざっていることがある（JSON仕様では不正）ため、
+   文字列リテラルの内側だけを検出してエスケープしてから渡す */
+function sanitizeJsonStrings(str){
+  let result = '';
+  let inString = false;
+  let escapeNext = false;
+  for(let i = 0; i < str.length; i++){
+    const ch = str[i];
+    if(escapeNext){ result += ch; escapeNext = false; continue; }
+    if(ch === '\\'){ result += ch; escapeNext = true; continue; }
+    if(ch === '"'){ inString = !inString; result += ch; continue; }
+    if(inString){
+      if(ch === '\n'){ result += '\\n'; continue; }
+      if(ch === '\r'){ continue; } // \r\n の \r は単純に捨てる
+      if(ch === '\t'){ result += '\\t'; continue; }
+    }
+    result += ch;
+  }
+  return result;
 }
 
 async function generate(){
