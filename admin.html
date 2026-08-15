@@ -1153,24 +1153,24 @@
               <div class="fgrid">
                 <div class="frow full">
                   <label class="flabel">ページタイトル <span class="req">*</span></label>
-                  <input id="sp-title" type="text" class="finput" placeholder="2027年 洲本市議選 特集" />
+                  <input id="spg-title" type="text" class="finput" placeholder="2027年 洲本市議選 特集" />
                 </div>
                 <div class="frow">
                   <label class="flabel">スラッグ（URL用） <span class="req">*</span></label>
-                  <input id="sp-slug" type="text" class="finput" placeholder="senkyo2027" />
+                  <input id="spg-slug" type="text" class="finput" placeholder="senkyo2027" />
                   <span class="fhint">公開URL: index.html#special/スラッグ</span>
                 </div>
                 <div class="frow">
                   <label class="flabel">テーマカラー</label>
-                  <input id="sp-color" type="color" class="finput" value="#2d6a4f" style="height:42px;padding:.3rem" />
+                  <input id="spg-color" type="color" class="finput" value="#2d6a4f" style="height:42px;padding:.3rem" />
                 </div>
                 <div class="frow full">
                   <label class="flabel">説明文（一覧・SNSシェア用、任意）</label>
-                  <input id="sp-desc" type="text" class="finput" placeholder="このページの簡単な説明" />
+                  <input id="spg-desc" type="text" class="finput" placeholder="このページの簡単な説明" />
                 </div>
                 <div class="frow">
                   <label class="flabel">公開状態</label>
-                  <select id="sp-status" class="fselect">
+                  <select id="spg-status" class="fselect">
                     <option value="draft">下書き（非公開）</option>
                     <option value="published">公開</option>
                   </select>
@@ -1178,16 +1178,16 @@
                 <div class="frow"></div>
                 <div class="frow">
                   <label class="flabel">公開開始日時（空欄なら即時）</label>
-                  <input id="sp-publishat" type="datetime-local" class="finput" />
+                  <input id="spg-publishat" type="datetime-local" class="finput" />
                 </div>
                 <div class="frow">
                   <label class="flabel">公開終了日時（空欄なら無期限）</label>
-                  <input id="sp-unpublishat" type="datetime-local" class="finput" />
+                  <input id="spg-unpublishat" type="datetime-local" class="finput" />
                 </div>
               </div>
               <div class="factions">
                 <button class="btn btn-o" onclick="previewSpecialPage()">👁️ プレビュー</button>
-                <button class="btn btn-g" id="sp-save-btn" onclick="saveSpecialPage()">💾 保存する</button>
+                <button class="btn btn-g" id="spg-save-btn" onclick="saveSpecialPage()">💾 保存する</button>
               </div>
             </div>
           </div>
@@ -3761,13 +3761,13 @@ function startFromTemplate(key) {
   spCurrentId = null;
   spCurrentBlocks = JSON.parse(JSON.stringify((tpl && tpl.blocks) || []));
   spCurrentBlocks.forEach(function(b){ b._uid = 'b_'+Math.random().toString(36).slice(2,9); });
-  document.getElementById('sp-title').value = '';
-  document.getElementById('sp-slug').value = '';
-  document.getElementById('sp-color').value = '#2d6a4f';
-  document.getElementById('sp-desc').value = '';
-  document.getElementById('sp-status').value = 'draft';
-  document.getElementById('sp-publishat').value = '';
-  document.getElementById('sp-unpublishat').value = '';
+  document.getElementById('spg-title').value = '';
+  document.getElementById('spg-slug').value = '';
+  document.getElementById('spg-color').value = '#2d6a4f';
+  document.getElementById('spg-desc').value = '';
+  document.getElementById('spg-status').value = 'draft';
+  document.getElementById('spg-publishat').value = '';
+  document.getElementById('spg-unpublishat').value = '';
   document.getElementById('sp-editor-title').textContent = '特設ページを新規作成';
   document.getElementById('specialpages-list-panel').style.display = 'none';
   document.getElementById('specialpage-editor-panel').style.display = 'block';
@@ -3780,13 +3780,13 @@ async function startEditSpecialPage(id) {
   spCurrentId = id;
   spCurrentBlocks = JSON.parse(JSON.stringify(p.blocks||[]));
   spCurrentBlocks.forEach(function(b){ if(!b._uid) b._uid = 'b_'+Math.random().toString(36).slice(2,9); });
-  document.getElementById('sp-title').value = p.title||'';
-  document.getElementById('sp-slug').value = p.slug||'';
-  document.getElementById('sp-color').value = p.themeColor||'#2d6a4f';
-  document.getElementById('sp-desc').value = p.description||'';
-  document.getElementById('sp-status').value = p.status||'draft';
-  document.getElementById('sp-publishat').value = p.publishAt ? toDatetimeLocal(new Date(p.publishAt)) : '';
-  document.getElementById('sp-unpublishat').value = p.unpublishAt ? toDatetimeLocal(new Date(p.unpublishAt)) : '';
+  document.getElementById('spg-title').value = p.title||'';
+  document.getElementById('spg-slug').value = p.slug||'';
+  document.getElementById('spg-color').value = p.themeColor||'#2d6a4f';
+  document.getElementById('spg-desc').value = p.description||'';
+  document.getElementById('spg-status').value = p.status||'draft';
+  document.getElementById('spg-publishat').value = p.publishAt ? toDatetimeLocal(new Date(p.publishAt)) : '';
+  document.getElementById('spg-unpublishat').value = p.unpublishAt ? toDatetimeLocal(new Date(p.unpublishAt)) : '';
   document.getElementById('sp-editor-title').textContent = '編集: ' + (p.title||'');
   document.getElementById('specialpages-list-panel').style.display = 'none';
   document.getElementById('specialpage-editor-panel').style.display = 'block';
@@ -3801,8 +3801,8 @@ function closeSpecialPageEditor() {
 }
 
 async function saveSpecialPage() {
-  var title = document.getElementById('sp-title').value.trim();
-  var slug = document.getElementById('sp-slug').value.trim();
+  var title = document.getElementById('spg-title').value.trim();
+  var slug = document.getElementById('spg-slug').value.trim();
   if (!title) { toast('タイトルを入力してください', 'warn'); return; }
   if (!slug || !/^[a-zA-Z0-9_-]+$/.test(slug)) { toast('スラッグは半角英数字・ハイフン・アンダースコアのみで入力してください', 'warn'); return; }
 
@@ -3814,16 +3814,16 @@ async function saveSpecialPage() {
   var data = {
     title: title,
     slug: slug,
-    themeColor: document.getElementById('sp-color').value,
-    description: document.getElementById('sp-desc').value.trim(),
-    status: document.getElementById('sp-status').value,
-    publishAt: document.getElementById('sp-publishat').value ? new Date(document.getElementById('sp-publishat').value).toISOString() : '',
-    unpublishAt: document.getElementById('sp-unpublishat').value ? new Date(document.getElementById('sp-unpublishat').value).toISOString() : '',
+    themeColor: document.getElementById('spg-color').value,
+    description: document.getElementById('spg-desc').value.trim(),
+    status: document.getElementById('spg-status').value,
+    publishAt: document.getElementById('spg-publishat').value ? new Date(document.getElementById('spg-publishat').value).toISOString() : '',
+    unpublishAt: document.getElementById('spg-unpublishat').value ? new Date(document.getElementById('spg-unpublishat').value).toISOString() : '',
     blocks: blocksToSave,
     updatedAt: window._ts()
   };
 
-  var btn = document.getElementById('sp-save-btn');
+  var btn = document.getElementById('spg-save-btn');
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 保存中…';
   try {
     if (spCurrentId) {
@@ -3848,10 +3848,10 @@ function askDelSpecialPage(id, title) {
 }
 
 function previewSpecialPage() {
-  var slug = document.getElementById('sp-slug').value.trim();
+  var slug = document.getElementById('spg-slug').value.trim();
   if (!slug) { toast('スラッグを入力してから保存し、プレビューしてください', 'warn'); return; }
   if (!spCurrentId) { toast('先に保存してからプレビューしてください', 'warn'); return; }
-  if (document.getElementById('sp-status').value !== 'published') { toast('プレビューは「公開」状態で保存した場合のみ見られます（下書き中は非公開サイトからは見えません）', 'warn'); return; }
+  if (document.getElementById('spg-status').value !== 'published') { toast('プレビューは「公開」状態で保存した場合のみ見られます（下書き中は非公開サイトからは見えません）', 'warn'); return; }
   window.open(location.origin + location.pathname.replace('admin.html', 'index.html') + '#special/' + encodeURIComponent(slug), '_blank');
 }
 
