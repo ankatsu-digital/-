@@ -283,7 +283,15 @@ async function callAI(prompt){
   if(!response.ok) throw new Error('プロキシ応答エラー: ' + response.status);
   const data = await response.json();
 
-  if(data.error){ throw new Error(String(data.error)); }
+  if(data.error){
+    // Gemini/GASからのエラーは {error: {code, message, status}} という
+    // オブジェクト形式で返ることがあるため、中身を正しく文字列化する
+    const errObj = data.error;
+    const msg = (typeof errObj === 'string')
+      ? errObj
+      : (errObj.message || JSON.stringify(errObj));
+    throw new Error(msg);
+  }
 
   // Gemini API のレスポンス形式: candidates[0].content.parts[0].text
   const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
@@ -318,7 +326,8 @@ async function generate(){
     statusNote.textContent = '✓ 下書きを生成しました。内容を確認・編集してください';
   }catch(e){
     console.error(e);
-    statusNote.textContent = '生成に失敗しました。もう一度お試しください（' + e.message + '）';
+    const msg = (e && e.message) ? e.message : (typeof e === 'string' ? e : JSON.stringify(e));
+    statusNote.textContent = '生成に失敗しました。もう一度お試しください（' + msg + '）';
     statusNote.classList.add('error');
   }finally{
     setLoading(false);
