@@ -231,6 +231,10 @@ const memoInput = document.getElementById('memo-input');
 const catHintSelect = document.getElementById('cat-hint-select');
 const toneSelect = document.getElementById('tone-select');
 
+/* ここに、GASでデプロイした「ウェブアプリのURL」を貼り付けてください。
+   例: https://script.google.com/macros/s/XXXXXXXXXXXXXXXXX/exec */
+const AI_PROXY_URL = 'https://script.google.com/macros/s/AKfycbyvUYswr3gn2HKtRBJAiddUIX9sHAS1w_2Dh2ptKczmvFs2cHd2h1jBpms0BKgqhatSVA/exec';
+
 function setLoading(loading){
   genBtn.disabled = loading;
   genBtn.classList.toggle('loading', loading);
@@ -266,19 +270,24 @@ ${memo}
 }`;
 }
 
-async function callClaude(prompt){
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+async function callAI(prompt){
+  if(!AI_PROXY_URL || AI_PROXY_URL.startsWith('ここに')){
+    throw new Error('AI_PROXY_URL が未設定です。GASのウェブアプリURLをコードに貼り付けてください');
+  }
+  // GASのCORS事情に合わせ、content-typeヘッダーは付けずtext/plainとして送る
+  // （application/jsonにするとプリフライトOPTIONSが発生し、GASがブロックしてしまうため）
+  const response = await fetch(AI_PROXY_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1000,
-      messages: [{ role: "user", content: prompt }]
-    })
+    body: JSON.stringify({ prompt })
   });
-  if(!response.ok) throw new Error('API応答エラー: ' + response.status);
+  if(!response.ok) throw new Error('プロキシ応答エラー: ' + response.status);
   const data = await response.json();
-  const text = (data.content || []).map(b => b.text || '').join('');
+
+  if(data.error){ throw new Error(String(data.error)); }
+
+  // Gemini API のレスポンス形式: candidates[0].content.parts[0].text
+  const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
+  if(!text) throw new Error('AIからの応答が空でした（内容がブロックされた可能性があります）');
   const clean = text.replace(/```json|```/g, '').trim();
   return JSON.parse(clean);
 }
@@ -296,7 +305,7 @@ async function generate(){
 
   try{
     const prompt = buildPrompt(memo, catHintSelect.value, toneSelect.value);
-    const result = await callClaude(prompt);
+    const result = await callAI(prompt);
 
     const cat = CAT_META[result.category] ? result.category : 'event';
     document.getElementById('cat-select').value = cat;
