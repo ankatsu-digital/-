@@ -2236,7 +2236,7 @@
       case 'table':
         div.className = 'sp-block';
         var head = '<tr>'+(block.headers||[]).map(function(h){ return '<th>'+h+'</th>'; }).join('')+'</tr>';
-        var rows = (block.rows||[]).map(function(r){ return '<tr>'+r.map(function(c){ return '<td>'+c+'</td>'; }).join('')+'</tr>'; }).join('');
+        var rows = (block.rows||[]).map(function(r){ return '<tr>'+(r.cells||[]).map(function(c){ return '<td>'+c+'</td>'; }).join('')+'</tr>'; }).join('');
         div.innerHTML = (block.heading ? '<div class="sp-table-heading">'+block.heading+'</div>' : '')
           + '<div style="overflow-x:auto"><table class="sp-table"><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></div>';
         return div;
