@@ -170,6 +170,10 @@
     .kumamon-ph.left  { left: 1.5rem; }
     .kumamon-ph.right { right: 1.5rem; }
     .kumamon-ph .ph-icon { font-size: 2rem; }
+    @media (max-width: 900px) {
+      .kumamon-ph { width: 110px; height: 26vh; font-size: 0.6rem; padding: 0.5rem; }
+      .kumamon-ph .ph-icon { font-size: 1.4rem; }
+    }
 
     /* 吹き出し（左のくまモンのセリフ） */
     .kumamon-speech {
@@ -220,8 +224,22 @@
     }
 
     @media (max-width: 900px) {
-      .kumamon-figure, .kumamon-ph { display: none; }
-      .kumamon-speech { display: none; }
+      .kumamon-figure, .kumamon-ph {
+        max-height: 26vh;
+      }
+      .kumamon-speech {
+        left: auto;
+        right: 0.75rem;
+        top: 8%;
+        max-width: 130px;
+        font-size: 0.72rem;
+        padding: 0.6rem 0.8rem;
+      }
+      .kumamon-speech::after,
+      .kumamon-speech::before {
+        left: auto;
+        right: 24px;
+      }
     }
 
     /* 404コンテンツ */
@@ -598,57 +616,110 @@
     // y     … 縦位置。「下端からの距離」。プラスにすると上へ動きます
     // width … 画像の幅（高さは自動で比率調整されます）
     // すべて単位付き文字列で指定します（例: '1.5rem', '40px', '10%'）
+    //
+    // mobile … スマホ表示（幅900px以下）のときだけ使う値。
+    //          x / y / width を個別に上書きできます。
+    //          省略した項目はPC用の値がそのまま使われます。
+    //          hidden:true にするとスマホでは非表示にできます。
     // ==========================================================
     var KUMAMON_IMAGES = {
       left: {
-        src:   'https://kumamon-land.jp/img/top/ph_news_kumamon.png',            // 例）'kumamon-left.svg'
-        x:     '10rem',      // 左端からの距離
-        y:     '8rem',           // 下端からの距離（+で上に移動）
-        width: '210px'
+        src:   '',            // 例）'kumamon-left.svg'
+        x:     '1.5rem',      // 左端からの距離（PC）
+        y:     '0',           // 下端からの距離（PC / +で上に移動）
+        width: '210px',       // 画像の幅（PC）
+        mobile: {
+          x:     '0.5rem',
+          y:     '0',
+          width: '96px',
+          hidden: false
+        }
       },
       right: {
         src:   '',            // 例）'kumamon-right.svg'
-        x:     '1.5rem',      // 右端からの距離
-        y:     '0',           // 下端からの距離（+で上に移動）
-        width: '210px'
+        x:     '1.5rem',      // 右端からの距離（PC）
+        y:     '0',           // 下端からの距離（PC / +で上に移動）
+        width: '210px',       // 画像の幅（PC）
+        mobile: {
+          x:     '0.5rem',
+          y:     '0',
+          width: '96px',
+          hidden: false
+        }
       },
-      logo:   'https://kumamon-land.jp/img/common/logo.svg',   // ヘッダーの「くまモン」ロゴ画像URL（任意）
+      logo:   '',   // ヘッダーの「くまモン」ロゴ画像URL（任意）
       credit: '©2010 熊本県くまモン'  // フッターに表示するクレジット表記
     };
+
+    var KUMAMON_MOBILE_BREAKPOINT = 900; // px。この幅以下をスマホ扱いにします
+
+    function isKumamonMobile() {
+      return window.innerWidth <= KUMAMON_MOBILE_BREAKPOINT;
+    }
+
+    function resolveKumamonCfg(base) {
+      // PC値をベースに、スマホ時はmobileの指定があれば上書きする
+      var mobile = isKumamonMobile() && base.mobile ? base.mobile : {};
+      return {
+        x:      mobile.x     !== undefined ? mobile.x     : base.x,
+        y:      mobile.y     !== undefined ? mobile.y     : base.y,
+        width:  mobile.width !== undefined ? mobile.width : base.width,
+        hidden: isKumamonMobile() ? !!mobile.hidden : false
+      };
+    }
 
     function applyKumamonImages() {
       // 左
       if (KUMAMON_IMAGES.left && KUMAMON_IMAGES.left.src) {
-        var cfg = KUMAMON_IMAGES.left;
-        var l = document.getElementById('kumamon-left-img');
-        l.src = cfg.src;
-        l.style.left   = cfg.x || '1.5rem';
-        l.style.bottom = cfg.y || '0';
-        l.style.width  = cfg.width || '210px';
-        l.style.display = 'block';
-        document.getElementById('kumamon-left-ph').style.display = 'none';
+        var cfg = resolveKumamonCfg(KUMAMON_IMAGES.left);
+        var l  = document.getElementById('kumamon-left-img');
+        var lp = document.getElementById('kumamon-left-ph');
+        if (cfg.hidden) {
+          l.style.display = 'none';
+          lp.style.display = 'none';
+        } else {
+          l.src = KUMAMON_IMAGES.left.src;
+          l.style.left   = cfg.x || '1.5rem';
+          l.style.bottom = cfg.y || '0';
+          l.style.width  = cfg.width || '210px';
+          l.style.display = 'block';
+          lp.style.display = 'none';
+        }
       }
       // 右
       if (KUMAMON_IMAGES.right && KUMAMON_IMAGES.right.src) {
-        var cfgR = KUMAMON_IMAGES.right;
-        var r = document.getElementById('kumamon-right-img');
-        r.src = cfgR.src;
-        r.style.right  = cfgR.x || '1.5rem';
-        r.style.bottom = cfgR.y || '0';
-        r.style.width  = cfgR.width || '210px';
-        r.style.display = 'block';
-        document.getElementById('kumamon-right-ph').style.display = 'none';
+        var cfgR = resolveKumamonCfg(KUMAMON_IMAGES.right);
+        var r  = document.getElementById('kumamon-right-img');
+        var rp = document.getElementById('kumamon-right-ph');
+        if (cfgR.hidden) {
+          r.style.display = 'none';
+          rp.style.display = 'none';
+        } else {
+          r.src = KUMAMON_IMAGES.right.src;
+          r.style.right  = cfgR.x || '1.5rem';
+          r.style.bottom = cfgR.y || '0';
+          r.style.width  = cfgR.width || '210px';
+          r.style.display = 'block';
+          rp.style.display = 'none';
+        }
       }
       // ロゴ（ヘッダー）
       if (KUMAMON_IMAGES.logo) {
         var span = document.getElementById('collab-partner-text');
-        span.outerHTML = '<img class="collab-partner-mark" id="collab-partner-text" src="'+KUMAMON_IMAGES.logo+'" alt="くまモン">';
+        if (span) span.outerHTML = '<img class="collab-partner-mark" id="collab-partner-text" src="'+KUMAMON_IMAGES.logo+'" alt="くまモン">';
       }
       // クレジット
       var creditEl = document.getElementById('kumamon-credit-line');
       if (creditEl) creditEl.textContent = KUMAMON_IMAGES.credit || '';
     }
     applyKumamonImages();
+
+    // 画面幅が変わった（回転含む）ときにPC/スマホの設定を自動で切り替える
+    var _kumamonResizeTimer = null;
+    window.addEventListener('resize', function () {
+      clearTimeout(_kumamonResizeTimer);
+      _kumamonResizeTimer = setTimeout(applyKumamonImages, 150);
+    });
 
     // ダークモード
     (function() {
