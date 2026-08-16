@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>アンカツ 記事メーカー｜メモから記事にする</title>
+<title>アンカツ 記事AIメーカー｜メモから記事にする</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%9D%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700;900&family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
@@ -183,7 +183,7 @@ footer{ text-align:center; padding:10px 20px 30px; font-size:10.5px; color:#a89f
         </div>
 
         <div class="out-row">
-          <div class="out-row-head"><label>本文</label><button class="copy-btn" data-copy="out-body">コピー</button></div>
+          <div class="out-row-head"><label>本文（HTML形式・そのままサイトに貼れます）</label><button class="copy-btn" data-copy="out-body">コピー</button></div>
           <textarea id="out-body"></textarea>
         </div>
 
@@ -261,13 +261,24 @@ ${memo}
 
 【出力形式】
 前置き・説明・コードブロック記号(\`\`\`)は一切つけず、次のJSON形式のみを出力してください。日本語で書いてください。
-本文中で段落を分けたい場合は、生の改行ではなく必ず \\n （バックスラッシュ+n）で表現してください。
+JSON文字列として壊れないよう、改行は必ず \\n （バックスラッシュ+n）で表現してください（生の改行を直接入れない）。
+
+"body"（本文）は、実際にサイトへそのまま貼り付けて使うHTMLタグ入りで出力してください。以下のルールに従ってください。
+
+- 説明文は <p>...</p> で段落に分け、段落内で改行したい場合は <br> を使う（例: <p>1行目<br>2行目</p>）
+- 強調したい語句・イベント名などは <strong>...</strong> で囲む
+- メモに日時の情報があれば、本文の最後に <h3>■日時</h3><p>...</p> を追加する
+- メモに会場・場所の情報があれば <h3>■会場</h3><p>...</p> を追加する
+- メモに参加費・料金の情報があれば <h3>■参加費</h3><p>...</p> を追加する
+- メモに対象者の情報があれば <h3>■対象</h3><p>...</p> を追加する
+- 上記4項目（日時/会場/参加費/対象）は、メモにその情報が無ければ見出しごと出力しないでください（存在しない情報を作らない。空欄でも出さない）
+- お知らせ・空き家など、日時や参加費が無いカテゴリの記事では、<p>の説明文だけで問題ありません
 
 {
   "category": "${catHint === 'auto' ? 'event/akiya/food/facility/sightseeing/notice/maintenance/bousaiのいずれか' : catHint}",
   "title": "記事タイトル（15〜28文字程度、読者の興味を引く見出し）",
-  "body": "記事本文（300〜500文字程度、2〜4段落程度に分けてよい）",
-  "sns": "SNS投稿用の短い文章（50文字以内、絵文字は多くても1〜2個）"
+  "body": "HTMLタグ入りの記事本文（上記ルールに従うこと）",
+  "sns": "SNS投稿用の短い文章（50文字以内、絵文字は多くても1〜2個、HTMLタグは使わない）"
 }`;
 }
 
