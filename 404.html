@@ -71,9 +71,13 @@
       align-items: center;
       justify-content: space-between;
     }
-    .site-logo { display: flex; flex-direction: column; line-height: 1; }
-    .logo-main { font-family: var(--serif); font-size: 1.5rem; font-weight: 900; color: var(--accent); letter-spacing: 0.05em; }
+    .site-logo { display: flex; align-items: center; gap: 0.6rem; line-height: 1; }
+    .logo-text-wrap { display: flex; flex-direction: column; line-height: 1; }
+    .logo-main { font-family: var(--serif); font-size: 1.5rem; font-weight: 900; color: var(--accent); letter-spacing: 0.05em; display:flex; align-items:center; gap:.4rem; }
     .logo-sub  { font-size: 0.6rem; color: var(--text-muted); letter-spacing: 0.2em; }
+    .collab-x { font-size: 1rem; font-weight: 900; color: var(--text-light); }
+    .collab-partner-logo { font-size: 1.4rem; font-weight: 900; color: #d9333f; letter-spacing: 0.02em; }
+    .collab-partner-mark { height: 26px; width: auto; display: block; }
     #dark-toggle {
       width: 44px; height: 24px;
       background: var(--border); border-radius: 12px;
@@ -125,6 +129,99 @@
       top: -40px;
       left: -60px;
       width: 400px;
+    }
+
+    /* ==========================================================
+       くまモン コラボ演出
+       ========================================================== */
+    .kumamon-figure {
+      position: absolute;
+      bottom: 0;
+      z-index: 2;
+      max-height: 62vh;
+      width: auto;
+      pointer-events: none;
+      filter: drop-shadow(0 10px 18px rgba(0,0,0,0.18));
+    }
+    .kumamon-figure.left  { left: 1.5rem; }
+    .kumamon-figure.right { right: 1.5rem; }
+
+    /* 画像未設定時のプレースホルダー（Imgur等のURLを設定すると自動的に画像へ置き換わります） */
+    .kumamon-ph {
+      position: absolute;
+      bottom: 0;
+      z-index: 2;
+      width: 190px;
+      height: 320px;
+      border: 2px dashed var(--border);
+      border-radius: 16px;
+      background: var(--bg-sub);
+      color: var(--text-light);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      font-size: 0.72rem;
+      line-height: 1.7;
+      padding: 1rem;
+      text-align: center;
+    }
+    .kumamon-ph.left  { left: 1.5rem; }
+    .kumamon-ph.right { right: 1.5rem; }
+    .kumamon-ph .ph-icon { font-size: 2rem; }
+
+    /* 吹き出し（左のくまモンのセリフ） */
+    .kumamon-speech {
+      position: absolute;
+      left: 12rem;
+      top: 26%;
+      z-index: 3;
+      background: #fff;
+      border: 2px solid var(--text-main);
+      border-radius: 20px;
+      padding: 0.9rem 1.2rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+      line-height: 1.6;
+      color: var(--text-main);
+      max-width: 190px;
+      text-align: left;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .kumamon-speech::after {
+      content: '';
+      position: absolute;
+      bottom: -14px;
+      left: 30px;
+      border-width: 14px 8px 0 8px;
+      border-style: solid;
+      border-color: var(--text-main) transparent transparent transparent;
+    }
+    .kumamon-speech::before {
+      content: '';
+      position: absolute;
+      bottom: -10px;
+      left: 32px;
+      border-width: 11px 6px 0 6px;
+      border-style: solid;
+      border-color: #fff transparent transparent transparent;
+      z-index: 1;
+    }
+    [data-theme="dark"] .kumamon-speech { background: var(--bg-card); border-color: var(--border); color: var(--text-main); }
+    [data-theme="dark"] .kumamon-speech::before { border-color: var(--bg-card) transparent transparent transparent; }
+
+    /* くまモン コラボ・クレジット表記（画像利用ガイドラインに沿って明示） */
+    .kumamon-credit {
+      margin-top: 1.5rem;
+      font-size: 0.68rem;
+      color: var(--text-light);
+      letter-spacing: 0.02em;
+    }
+
+    @media (max-width: 900px) {
+      .kumamon-figure, .kumamon-ph { display: none; }
+      .kumamon-speech { display: none; }
     }
 
     /* 404コンテンツ */
@@ -370,8 +467,15 @@
   <header id="site-header">
     <div class="header-inner">
       <a href="index.html" class="site-logo">
-        <span class="logo-main">アンカツ＋</span>
-        <span class="logo-sub">城下町洲本 / Sumoto Minamiawaji</span>
+        <span class="logo-text-wrap">
+          <span class="logo-main">
+            アンカツ＋
+            <span class="collab-x">×</span>
+            <!-- くまモンのロゴ画像を使う場合はここに<img class="collab-partner-mark" src="...">を入れてください。未設定時はテキスト表記になります -->
+            <span class="collab-partner-logo" id="collab-partner-text">くまモン</span>
+          </span>
+          <span class="logo-sub">城下町洲本 / Sumoto Minamiawaji</span>
+        </span>
       </a>
       <button id="dark-toggle" aria-label="ダークモード切替"></button>
     </div>
@@ -411,6 +515,21 @@
         <line x1="57" y1="57" x2="243" y2="243" />
         <line x1="243" y1="57" x2="57" y2="243" />
       </svg>
+    </div>
+
+    <!-- くまモン（左：画像URLを設定するとここに表示されます） -->
+    <img id="kumamon-left-img" class="kumamon-figure left" alt="くまモン" style="display:none;">
+    <div id="kumamon-left-ph" class="kumamon-ph left">
+      <span class="ph-icon">🐻</span>
+      <span>くまモン画像<br>未設定<br><br>下部の「KUMAMON_IMAGES.left」に画像URLを貼ると<br>自動で表示されます</span>
+    </div>
+    <div class="kumamon-speech">あれ〜？<br>ページが<br>見つからないモン…</div>
+
+    <!-- くまモン（右：画像URLを設定するとここに表示されます） -->
+    <img id="kumamon-right-img" class="kumamon-figure right" alt="くまモン" style="display:none;">
+    <div id="kumamon-right-ph" class="kumamon-ph right">
+      <span class="ph-icon">🐻</span>
+      <span>くまモン画像<br>未設定<br><br>下部の「KUMAMON_IMAGES.right」に画像URLを貼ると<br>自動で表示されます</span>
     </div>
 
     <!-- エラーコンテンツ -->
@@ -457,6 +576,8 @@
           <a class="cat-chip" href="index.html#cat/移住・定住">🌱 移住・定住</a>
         </div>
       </div>
+
+      <p class="kumamon-credit anim-5" id="kumamon-credit-line"><!-- JSでKUMAMON_IMAGES.creditの値が入ります --></p>
     </div>
 
   </main>
@@ -469,6 +590,49 @@
   </footer>
 
   <script>
+    // ==========================================================
+    // 🐻 くまモン画像設定
+    // ----------------------------------------------------------
+    // 画像を差し込みたい場合は、下のURLに直接貼り付けるだけでOKです。
+    // 例）Imgur（https://imgur.com/upload）に画像をアップし、
+    //     「Direct Link」（.jpg/.png で終わるURL）をコピーして貼ってください。
+    // 空欄のままだとプレースホルダー表示のままになります。
+    // ※くまモンの画像・ロゴは、熊本県の利用許諾（キャラクター使用許可）を
+    //   得たうえでご利用ください。
+    // ==========================================================
+    var KUMAMON_IMAGES = {
+      left:   '',   // 例）https://i.imgur.com/xxxxxxx.png（左側のくまモン全身画像）
+      right:  '',   // 例）https://i.imgur.com/xxxxxxx.png（右側のくまモン全身画像）
+      logo:   '',   // 例）https://i.imgur.com/xxxxxxx.png（「くまモン」ロゴ画像・任意。未設定時はテキスト表記）
+      credit: '©2010 熊本県くまモン'  // フッターに表示するクレジット表記
+    };
+
+    function applyKumamonImages() {
+      // 左
+      if (KUMAMON_IMAGES.left) {
+        var l = document.getElementById('kumamon-left-img');
+        l.src = KUMAMON_IMAGES.left;
+        l.style.display = 'block';
+        document.getElementById('kumamon-left-ph').style.display = 'none';
+      }
+      // 右
+      if (KUMAMON_IMAGES.right) {
+        var r = document.getElementById('kumamon-right-img');
+        r.src = KUMAMON_IMAGES.right;
+        r.style.display = 'block';
+        document.getElementById('kumamon-right-ph').style.display = 'none';
+      }
+      // ロゴ（ヘッダー）
+      if (KUMAMON_IMAGES.logo) {
+        var span = document.getElementById('collab-partner-text');
+        span.outerHTML = '<img class="collab-partner-mark" id="collab-partner-text" src="'+KUMAMON_IMAGES.logo+'" alt="くまモン">';
+      }
+      // クレジット
+      var creditEl = document.getElementById('kumamon-credit-line');
+      if (creditEl) creditEl.textContent = KUMAMON_IMAGES.credit || '';
+    }
+    applyKumamonImages();
+
     // ダークモード
     (function() {
       var stored = localStorage.getItem('theme');
