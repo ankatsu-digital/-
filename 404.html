@@ -143,8 +143,8 @@
       pointer-events: none;
       filter: drop-shadow(0 10px 18px rgba(0,0,0,0.18));
     }
-    .kumamon-figure.left  { left: 1.5rem; }
-    .kumamon-figure.right { right: 1.5rem; }
+    .kumamon-figure.left  { }
+    .kumamon-figure.right { }
 
     /* 画像未設定時のプレースホルダー（Imgur等のURLを設定すると自動的に画像へ置き換わります） */
     .kumamon-ph {
@@ -593,32 +593,49 @@
     // ==========================================================
     // 🐻 くまモン画像設定
     // ----------------------------------------------------------
-    // 画像を差し込みたい場合は、下のURLに直接貼り付けるだけでOKです。
-    // 例）Imgur（https://imgur.com/upload）に画像をアップし、
-    //     「Direct Link」（.jpg/.png で終わるURL）をコピーして貼ってください。
-    // 空欄のままだとプレースホルダー表示のままになります。
-    // ※くまモンの画像・ロゴは、熊本県の利用許諾（キャラクター使用許可）を
-    //   得たうえでご利用ください。
+    // src   … 画像のURL（サーバーに置いたファイル名 or 外部URL）
+    // x     … 横位置。left側は「左端からの距離」、right側は「右端からの距離」
+    // y     … 縦位置。「下端からの距離」。プラスにすると上へ動きます
+    // width … 画像の幅（高さは自動で比率調整されます）
+    // すべて単位付き文字列で指定します（例: '1.5rem', '40px', '10%'）
     // ==========================================================
     var KUMAMON_IMAGES = {
-      left:   'https://kumamon-land.jp/img/top/ph_news_kumamon.png',   // 例）https://i.imgur.com/xxxxxxx.png（左側のくまモン全身画像）
-      right:  '',   // 例）https://i.imgur.com/xxxxxxx.png（右側のくまモン全身画像）
-      logo:   'https://kumamon-land.jp/img/common/logo.svg',   // 例）https://i.imgur.com/xxxxxxx.png（「くまモン」ロゴ画像・任意。未設定時はテキスト表記）
+      left: {
+        src:   '',            // 例）'kumamon-left.svg'
+        x:     '1.5rem',      // 左端からの距離
+        y:     '0',           // 下端からの距離（+で上に移動）
+        width: '210px'
+      },
+      right: {
+        src:   '',            // 例）'kumamon-right.svg'
+        x:     '1.5rem',      // 右端からの距離
+        y:     '0',           // 下端からの距離（+で上に移動）
+        width: '210px'
+      },
+      logo:   '',   // ヘッダーの「くまモン」ロゴ画像URL（任意）
       credit: '©2010 熊本県くまモン'  // フッターに表示するクレジット表記
     };
 
     function applyKumamonImages() {
       // 左
-      if (KUMAMON_IMAGES.left) {
+      if (KUMAMON_IMAGES.left && KUMAMON_IMAGES.left.src) {
+        var cfg = KUMAMON_IMAGES.left;
         var l = document.getElementById('kumamon-left-img');
-        l.src = KUMAMON_IMAGES.left;
+        l.src = cfg.src;
+        l.style.left   = cfg.x || '1.5rem';
+        l.style.bottom = cfg.y || '0';
+        l.style.width  = cfg.width || '210px';
         l.style.display = 'block';
         document.getElementById('kumamon-left-ph').style.display = 'none';
       }
       // 右
-      if (KUMAMON_IMAGES.right) {
+      if (KUMAMON_IMAGES.right && KUMAMON_IMAGES.right.src) {
+        var cfgR = KUMAMON_IMAGES.right;
         var r = document.getElementById('kumamon-right-img');
-        r.src = KUMAMON_IMAGES.right;
+        r.src = cfgR.src;
+        r.style.right  = cfgR.x || '1.5rem';
+        r.style.bottom = cfgR.y || '0';
+        r.style.width  = cfgR.width || '210px';
         r.style.display = 'block';
         document.getElementById('kumamon-right-ph').style.display = 'none';
       }
