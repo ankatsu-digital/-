@@ -535,6 +535,20 @@
               </div>
 
               <div class="frow full">
+                <div class="crow">
+                  <input id="f-unlisted" type="checkbox" onchange="toggleUnlistedField()" />
+                  <label for="f-unlisted">🔒 限定公開にする（記事一覧・検索・カレンダー等には載せず、リンクを知っている人だけが見られる）</label>
+                </div>
+                <div id="unlisted-pw-wrap" style="display:none;margin-top:.5rem;max-width:320px">
+                  <div style="display:flex;gap:.5rem">
+                    <input id="f-access-pw" type="text" class="finput" placeholder="閲覧用パスワード" />
+                    <button class="btn btn-o btn-sm" type="button" onclick="genArticlePassword()">🎲 自動生成</button>
+                  </div>
+                  <div class="fhint">このパスワードを知っている人だけが記事を読めます。保存後、記事一覧から公開リンクをコピーできます。⚠️ 強固な暗号化ではないので、本当に重要な機密情報の公開には使わないでください。</div>
+                </div>
+              </div>
+
+              <div class="frow full">
                 <label class="flabel">本文 <span class="req">*</span></label>
                 <!-- モード切替タブ -->
                 <div style="display:flex;gap:0;margin-bottom:0;border:1.5px solid var(--border);border-bottom:none;border-radius:6px 6px 0 0;overflow:hidden;width:fit-content">
@@ -1175,7 +1189,14 @@
                     <option value="published">公開</option>
                   </select>
                 </div>
-                <div class="frow"></div>
+                <div class="frow">
+                  <label class="flabel">ヘッダー・フッター</label>
+                  <select id="spg-layoutmode" class="fselect">
+                    <option value="normal">通常（サイト共通のヘッダー・フッターを表示）</option>
+                    <option value="minimal">簡易（「アンカツ＋」ロゴ＋ホームへ、だけ表示）</option>
+                    <option value="none">非表示（完全にこのページだけ）</option>
+                  </select>
+                </div>
                 <div class="frow">
                   <label class="flabel">公開開始日時（空欄なら即時）</label>
                   <input id="spg-publishat" type="datetime-local" class="finput" />
@@ -1183,6 +1204,14 @@
                 <div class="frow">
                   <label class="flabel">公開終了日時（空欄なら無期限）</label>
                   <input id="spg-unpublishat" type="datetime-local" class="finput" />
+                </div>
+                <div class="frow full">
+                  <label class="flabel">ページ形式</label>
+                  <select id="spg-pagemode" class="fselect" onchange="onSpPageModeChange()">
+                    <option value="blocks">ブロックを組み合わせて作成</option>
+                    <option value="raw">完全なHTML・CSS・JSで自由に作成（ブロックは使わない）</option>
+                  </select>
+                  <span class="fhint">「完全HTML」を選ぶと下のブロック構成は使わず、フルページのHTML/CSS/JSをそのまま書けます。ヘッダー・フッターも「非表示」にすると、完全に独立したページになります</span>
                 </div>
               </div>
               <div class="factions">
@@ -1192,8 +1221,8 @@
             </div>
           </div>
 
-          <!-- ブロック一覧 -->
-          <div class="fcard">
+          <!-- ブロック一覧（ページ形式が「ブロック」の時だけ表示） -->
+          <div class="fcard" id="sp-blocks-panel">
             <div class="fhead"><span style="font-weight:700;font-size:.95rem">ブロック構成</span></div>
             <div class="fbody">
               <div id="sp-blocks-list" style="display:flex;flex-direction:column;gap:1rem"></div>
@@ -1210,6 +1239,26 @@
                   <button class="btn btn-o btn-sm" onclick="addSpecialBlock('related')">📰 関連記事</button>
                   <button class="btn btn-o btn-sm" onclick="addSpecialBlock('html')">🧩 HTML/JS</button>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 完全HTML/CSS/JS編集（ページ形式が「完全HTML」の時だけ表示） -->
+          <div class="fcard" id="sp-raw-panel" style="display:none">
+            <div class="fhead"><span style="font-weight:700;font-size:.95rem">完全HTML・CSS・JS</span></div>
+            <div class="fbody">
+              <div class="frow full">
+                <label class="flabel">HTML（本文）</label>
+                <textarea id="spg-rawhtml" class="finput" style="min-height:220px;font-family:monospace;font-size:.82rem;resize:vertical" placeholder="&lt;div class=&quot;my-page&quot;&gt;&#10;  &lt;h1&gt;タイトル&lt;/h1&gt;&#10;&lt;/div&gt;"></textarea>
+              </div>
+              <div class="frow full">
+                <label class="flabel">CSS（このページだけに適用）</label>
+                <textarea id="spg-rawcss" class="finput" style="min-height:160px;font-family:monospace;font-size:.82rem;resize:vertical" placeholder=".my-page{ padding:2rem; }"></textarea>
+              </div>
+              <div class="frow full">
+                <label class="flabel">JavaScript</label>
+                <textarea id="spg-rawjs" class="finput" style="min-height:160px;font-family:monospace;font-size:.82rem;resize:vertical" placeholder="console.log('ページが読み込まれました');"></textarea>
+                <span class="fhint">HTML内に直接 &lt;script&gt; タグを書いてもOKです。このJS欄と両方使えます。</span>
               </div>
             </div>
           </div>
@@ -2082,19 +2131,33 @@ function renderArticles(filter) {
   empty.style.display = 'none';
   tbody.innerHTML = list.map(function(a){
     var scheduleBadge = isArticleScheduled(a) ? '<span class="tag tag-y" title="'+fmtDate(a.createdAt)+'に公開予定">⏰予約中</span>' : '';
+    var unlistedBadge = a.unlisted ? '<span class="tag" style="background:#e8e8f7;color:#5b4fc4" title="一覧・検索には表示されません">🔒限定公開</span>' : '';
     var isOwn = myUid && a.authorUid === myUid;
     var canEdit   = _role === 'admin' || _role === 'editor' || _myPermissions.indexOf('articles.edit')   >= 0 || isOwn;
     var canDelete = _role === 'admin' || _role === 'editor' || _myPermissions.indexOf('articles.delete') >= 0 || isOwn;
     var acts = (canEdit   ? '<button class="btn btn-o btn-sm" onclick="startEdit(\''+a.id+'\')">✏️</button>' : '')
+             + (a.unlisted ? '<button class="btn btn-o btn-sm" onclick="copyUnlistedLink(\''+a.id+'\')" title="限定公開リンクをコピー">🔗</button>' : '')
              + (canDelete ? '<button class="btn btn-r btn-sm" onclick="askDel(\''+a.id+'\',\''+a.title.replace(/'/g,"\\'")+'\')">🗑️</button>' : '');
     return '<tr>'
       +'<td>'+(a.thumbnail?'<img src="'+a.thumbnail+'" class="rthumb" loading="lazy"/>':'<div class="rthumb-ph">📰</div>')+'</td>'
-      +'<td><div style="font-weight:600;font-size:.83rem">'+a.title+'</div><div style="font-size:.7rem;color:var(--light)">/'+(a.slug||a.id)+'</div>'+(a.featured?'<span class="tag tag-y">⭐注目</span>':'')+scheduleBadge+'</td>'
+      +'<td><div style="font-weight:600;font-size:.83rem">'+a.title+'</div><div style="font-size:.7rem;color:var(--light)">/'+(a.slug||a.id)+'</div>'+(a.featured?'<span class="tag tag-y">⭐注目</span>':'')+scheduleBadge+unlistedBadge+'</td>'
       +'<td><span class="tag tag-g">'+(a.category||'—')+'</span></td>'
       +'<td style="font-size:.78rem">'+(a.author||'—')+'</td>'
       +'<td style="font-size:.76rem;white-space:nowrap">'+fmtDate(a.createdAt)+'</td>'
       +'<td><div class="acts">'+acts+'</div></td></tr>';
   }).join('');
+}
+
+function copyUnlistedLink(id){
+  var a = articles.find(function(x){ return x.id===id; });
+  if (!a) return;
+  var url = location.origin + location.pathname.replace('admin.html','index.html') + '#article/' + encodeURIComponent(a.slug||a.id);
+  var text = url + (a.accessPassword ? '\nパスワード: ' + a.accessPassword : '');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function(){ toast('リンクとパスワードをコピーしました 📋'); });
+  } else {
+    prompt('このリンクとパスワードをコピーしてください:', text);
+  }
 }
 
 // ============================================================
@@ -2956,6 +3019,8 @@ function getFormData() {
     featured:  document.getElementById('f-feat').checked,
     eventDate: document.getElementById('f-eventdate').value.trim(),
     eventTime: document.getElementById('f-eventtime').value.trim(),
+    unlisted:  document.getElementById('f-unlisted').checked,
+    accessPassword: document.getElementById('f-unlisted').checked ? document.getElementById('f-access-pw').value.trim() : '',
     body:      getBodyHtml()
   };
 }
@@ -2986,6 +3051,21 @@ function setFormData(d) {
   document.getElementById('f-schedule').checked = isScheduled;
   document.getElementById('f-publish-at').value = isScheduled ? toDatetimeLocal(createdAtDate) : '';
   toggleScheduleField();
+
+  document.getElementById('f-unlisted').checked = !!d.unlisted;
+  document.getElementById('f-access-pw').value = d.accessPassword || '';
+  toggleUnlistedField();
+}
+
+function toggleUnlistedField(){
+  var on = document.getElementById('f-unlisted').checked;
+  document.getElementById('unlisted-pw-wrap').style.display = on ? 'block' : 'none';
+}
+function genArticlePassword(){
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  var pw = '';
+  for (var i=0;i<10;i++) pw += chars[Math.floor(Math.random()*chars.length)];
+  document.getElementById('f-access-pw').value = pw;
 }
 
 function resetForm() {
@@ -3004,6 +3084,7 @@ async function pubArticle() {
   if (!d.slug)     { toast('スラッグを入力してください','warn'); return; }
   if (!d.category) { toast('カテゴリを選択してください','warn'); return; }
   if (!d.body||d.body==='<br>') { toast('本文を入力してください','warn'); return; }
+  if (d.unlisted && !d.accessPassword) { toast('限定公開にする場合はパスワードを入力してください（自動生成も使えます）','warn'); return; }
 
   var scheduleOn = document.getElementById('f-schedule').checked;
   var publishAtVal = document.getElementById('f-publish-at').value;
@@ -3766,11 +3847,17 @@ function startFromTemplate(key) {
   document.getElementById('spg-color').value = '#2d6a4f';
   document.getElementById('spg-desc').value = '';
   document.getElementById('spg-status').value = 'draft';
+  document.getElementById('spg-layoutmode').value = 'normal';
   document.getElementById('spg-publishat').value = '';
   document.getElementById('spg-unpublishat').value = '';
+  document.getElementById('spg-pagemode').value = 'blocks';
+  document.getElementById('spg-rawhtml').value = '';
+  document.getElementById('spg-rawcss').value = '';
+  document.getElementById('spg-rawjs').value = '';
   document.getElementById('sp-editor-title').textContent = '特設ページを新規作成';
   document.getElementById('specialpages-list-panel').style.display = 'none';
   document.getElementById('specialpage-editor-panel').style.display = 'block';
+  onSpPageModeChange();
   renderSpBlocksList();
 }
 
@@ -3785,12 +3872,24 @@ async function startEditSpecialPage(id) {
   document.getElementById('spg-color').value = p.themeColor||'#2d6a4f';
   document.getElementById('spg-desc').value = p.description||'';
   document.getElementById('spg-status').value = p.status||'draft';
+  document.getElementById('spg-layoutmode').value = p.layoutMode||'normal';
   document.getElementById('spg-publishat').value = p.publishAt ? toDatetimeLocal(new Date(p.publishAt)) : '';
   document.getElementById('spg-unpublishat').value = p.unpublishAt ? toDatetimeLocal(new Date(p.unpublishAt)) : '';
+  document.getElementById('spg-pagemode').value = p.pageMode||'blocks';
+  document.getElementById('spg-rawhtml').value = p.rawHtml||'';
+  document.getElementById('spg-rawcss').value = p.rawCss||'';
+  document.getElementById('spg-rawjs').value = p.rawJs||'';
   document.getElementById('sp-editor-title').textContent = '編集: ' + (p.title||'');
   document.getElementById('specialpages-list-panel').style.display = 'none';
   document.getElementById('specialpage-editor-panel').style.display = 'block';
+  onSpPageModeChange();
   renderSpBlocksList();
+}
+
+function onSpPageModeChange() {
+  var isRaw = document.getElementById('spg-pagemode').value === 'raw';
+  document.getElementById('sp-blocks-panel').style.display = isRaw ? 'none' : 'block';
+  document.getElementById('sp-raw-panel').style.display = isRaw ? 'block' : 'none';
 }
 
 function closeSpecialPageEditor() {
@@ -3809,6 +3908,7 @@ async function saveSpecialPage() {
   var dup = specialPages.find(function(p){ return p.slug===slug && p.id!==spCurrentId; });
   if (dup) { toast('このスラッグは既に使われています', 'warn'); return; }
 
+  var pageMode = document.getElementById('spg-pagemode').value;
   var blocksToSave = spCurrentBlocks.map(function(b){ var c = Object.assign({}, b); delete c._uid; return c; });
 
   var data = {
@@ -3817,9 +3917,14 @@ async function saveSpecialPage() {
     themeColor: document.getElementById('spg-color').value,
     description: document.getElementById('spg-desc').value.trim(),
     status: document.getElementById('spg-status').value,
+    layoutMode: document.getElementById('spg-layoutmode').value,
     publishAt: document.getElementById('spg-publishat').value ? new Date(document.getElementById('spg-publishat').value).toISOString() : '',
     unpublishAt: document.getElementById('spg-unpublishat').value ? new Date(document.getElementById('spg-unpublishat').value).toISOString() : '',
-    blocks: blocksToSave,
+    pageMode: pageMode,
+    blocks: pageMode === 'blocks' ? blocksToSave : [],
+    rawHtml: pageMode === 'raw' ? document.getElementById('spg-rawhtml').value : '',
+    rawCss:  pageMode === 'raw' ? document.getElementById('spg-rawcss').value  : '',
+    rawJs:   pageMode === 'raw' ? document.getElementById('spg-rawjs').value   : '',
     updatedAt: window._ts()
   };
 
