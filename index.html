@@ -875,6 +875,12 @@
     </div>
   </div>
 
+  <!-- 特設ページ用の簡易ヘッダー（layoutMode:minimal の時だけ表示） -->
+  <header id="special-minimal-header" style="display:none;background:var(--bg-card);border-bottom:1px solid var(--border);height:56px;align-items:center;padding:0 1.25rem;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px var(--shadow)">
+    <a href="index.html" style="font-family:var(--serif);font-weight:900;color:var(--accent);font-size:1.1rem;text-decoration:none">アンカツ＋</a>
+    <a href="index.html" style="margin-left:auto;font-size:.82rem;color:var(--text-muted);text-decoration:none;display:flex;align-items:center;gap:.3rem">← ホームへ</a>
+  </header>
+
   <header id="site-header">
     <div class="header-inner">
       <button id="menu-toggle" aria-label="メニュー">
@@ -1079,6 +1085,7 @@
 
   <script>
   var allArticles = [];
+  var visibleArticles = []; // allArticlesから限定公開(unlisted)記事を除いたもの。一覧・検索・カレンダー等はこちらを使う
   var allSeries = [];
   var currentView = 'top';
 
@@ -1463,9 +1470,13 @@
   }
 
   /* ---- Firestore 記事取得 ---- */
+  function computeVisibleArticles(){
+    visibleArticles = allArticles.filter(function(a){ return !a.unlisted; });
+  }
+
   async function loadArticles(){
     var db=window._db; var ops=window._firestoreOp;
-    if(!db||!ops){allArticles=DEMO_ARTICLES;renderAll();return;}
+    if(!db||!ops){allArticles=DEMO_ARTICLES;computeVisibleArticles();renderAll();return;}
     try{
       var snap=await ops.getDocs(ops.collection(db,'articles'));
       var now=new Date();
@@ -1480,6 +1491,7 @@
       allArticles.sort(function(a,b){try{var ta=a.createdAt&&a.createdAt.toDate?a.createdAt.toDate():new Date(a.createdAt||0);var tb=b.createdAt&&b.createdAt.toDate?b.createdAt.toDate():new Date(b.createdAt||0);return tb-ta;}catch(e){return 0;}});
       if(!allArticles.length) allArticles=DEMO_ARTICLES;
     }catch(e){console.error(e);allArticles=DEMO_ARTICLES;}
+    computeVisibleArticles();
     renderAll();
   }
 
@@ -1506,7 +1518,7 @@
   }
 
   function renderFeature(){
-    var feat=allArticles.find(function(a){return a.featured;})||allArticles[0];
+    var feat=visibleArticles.find(function(a){return a.featured;})||visibleArticles[0];
     if(!feat) return;
     var img=feat.thumbnail
       ?'<img src="'+feat.thumbnail+'" class="main-feature-img" alt="'+feat.title+'" />'
@@ -1522,7 +1534,7 @@
       +'<span class="read-more-btn">続きを読む ›</span></div>'
       +'</div></article>';
 
-    var rel=allArticles.filter(function(a){return a.id!==feat.id;}).slice(0,4);
+    var rel=visibleArticles.filter(function(a){return a.id!==feat.id;}).slice(0,4);
     if(rel.length){
       document.getElementById('related-grid').innerHTML=rel.map(function(a){
         return '<div class="related-card" onclick="openArticle(\''+a.id+'\')"> '
@@ -1534,7 +1546,7 @@
   }
 
   function renderNewsList(){
-    document.getElementById('news-list').innerHTML=allArticles.slice(0,12).map(function(a){
+    document.getElementById('news-list').innerHTML=visibleArticles.slice(0,12).map(function(a){
       return '<div class="news-item" onclick="openArticle(\''+a.id+'\')"> '
         +'<div class="thumb-map-wrap">'
         +(a.thumbnail?'<img src="'+a.thumbnail+'" class="news-thumb" loading="lazy"/>':'<div class="news-thumb-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>')
@@ -1548,7 +1560,7 @@
 
   function renderTagCloud(){
     var tags=[];
-    allArticles.forEach(function(a){if(Array.isArray(a.tags))a.tags.forEach(function(t){if(tags.indexOf(t)<0)tags.push(t);});});
+    visibleArticles.forEach(function(a){if(Array.isArray(a.tags))a.tags.forEach(function(t){if(tags.indexOf(t)<0)tags.push(t);});});
     if(!tags.length){document.getElementById('tag-section').style.display='none';return;}
     document.getElementById('tag-cloud').innerHTML=tags.map(function(t){
       return '<button class="tag-chip" onclick="filterByTag(\''+t+'\')"> #'+t+'</button>';
@@ -1558,6 +1570,7 @@
   /* ---- ビュー切替 ---- */
   function showView(v){
     if(currentView==='article' && v!=='article') finalizeCurrentPageView();
+    if(currentView==='special' && v!=='special') resetSpecialLayoutMode();
     document.getElementById('top-view').classList.toggle('hidden',v!=='top');
     document.getElementById('article-view').classList.toggle('visible',v==='article');
     document.getElementById('list-view').classList.toggle('visible',v==='list');
@@ -1576,12 +1589,46 @@
     var a=allArticles.find(function(x){return x.id===id||x.slug===id;});
     if(!a) return;
     history.pushState({view:'article',id:id},'','#article/'+(a.slug||a.id));
-    trackArticleView(a);
-    trackPageView(a);
+    if(isArticleUnlocked(a)){ trackArticleView(a); trackPageView(a); }
     renderArticle(a); showView('article');
   }
 
+  function isArticleUnlocked(a){
+    if(!a.accessPassword) return true;
+    try{ return sessionStorage.getItem('ankatsu_unlocked_'+a.id) === '1'; }catch(e){ return false; }
+  }
+
+  function renderArticleGate(a){
+    document.getElementById('article-content').innerHTML =
+      '<div style="max-width:480px;margin:4rem auto;text-align:center;padding:0 1.5rem">'
+      + '<div style="font-size:2.5rem;margin-bottom:1rem">🔒</div>'
+      + '<h1 style="font-family:var(--serif);font-size:1.3rem;font-weight:900;margin-bottom:.75rem">限定公開記事です</h1>'
+      + '<p style="font-size:.86rem;color:var(--text-muted);line-height:1.8;margin-bottom:1.5rem">このページを見るにはパスワードが必要です。リンクを共有された方からパスワードをご確認ください。</p>'
+      + '<div style="display:flex;gap:.5rem;max-width:320px;margin:0 auto">'
+      + '<input type="password" id="article-gate-pw" placeholder="パスワード" style="flex:1;padding:.7rem .9rem;border:1.5px solid var(--border);border-radius:6px;font-size:.9rem;outline:none" onkeydown="if(event.key===\'Enter\')submitArticleGate(\''+a.id+'\')">'
+      + '<button onclick="submitArticleGate(\''+a.id+'\')" style="background:var(--accent);color:#fff;padding:.7rem 1.3rem;border-radius:6px;font-size:.88rem;font-weight:700">見る</button>'
+      + '</div>'
+      + '<div id="article-gate-err" style="display:none;color:var(--danger);font-size:.82rem;margin-top:.75rem">パスワードが違います</div>'
+      + '</div>';
+    document.title = '限定公開記事 | アンカツ＋';
+  }
+
+  function submitArticleGate(id){
+    var a = allArticles.find(function(x){ return x.id===id; });
+    if(!a) return;
+    var pw = document.getElementById('article-gate-pw').value;
+    if(pw && pw === a.accessPassword){
+      try{ sessionStorage.setItem('ankatsu_unlocked_'+a.id, '1'); }catch(e){}
+      trackArticleView(a);
+      trackPageView(a);
+      renderArticle(a);
+    } else {
+      document.getElementById('article-gate-err').style.display = 'block';
+    }
+  }
+
   function renderArticle(a){
+    if(!isArticleUnlocked(a)){ renderArticleGate(a); return; }
     var img=a.thumbnail
       ?'<img src="'+a.thumbnail+'" class="article-hero" alt="'+a.title+'" />'
       :'<div class="article-hero-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>';
@@ -1776,7 +1823,7 @@
       document.title='アーカイブ | アンカツ＋';
       return;
     }
-    showListView('カテゴリ：'+cat,allArticles.filter(function(a){return a.category===cat;}));
+    showListView('カテゴリ：'+cat,visibleArticles.filter(function(a){return a.category===cat;}));
     history.pushState({view:'list',cat:cat},'','#cat/'+encodeURIComponent(cat));
   }
 
@@ -1786,7 +1833,7 @@
     document.getElementById('series-grid').innerHTML=!allSeries.length
       ?'<div class="empty-state" style="grid-column:1/-1"><div class="icon">📚</div><p>連載・特集はまだありません</p></div>'
       :allSeries.map(function(s){
-          var cnt=allArticles.filter(function(a){return a.seriesId===s.id||a.seriesId===s.slug;}).length;
+          var cnt=visibleArticles.filter(function(a){return a.seriesId===s.id||a.seriesId===s.slug;}).length;
           return '<article class="series-card" onclick="openSeries(\''+(s.slug||s.id)+'\')">'
             +(s.logo?'<img src="'+s.logo+'" class="series-card-logo"/>':'<div class="series-card-logo-ph">📚</div>')
             +'<div class="series-card-body">'
@@ -1807,7 +1854,7 @@
   }
 
   function renderSeriesDetail(s){
-    var arts=allArticles.filter(function(a){return a.seriesId===s.id||a.seriesId===s.slug;});
+    var arts=visibleArticles.filter(function(a){return a.seriesId===s.id||a.seriesId===s.slug;});
     var artsHtml=!arts.length
       ?'<div class="empty-state"><div class="icon">📭</div><p>この連載・特集にはまだ記事がありません</p></div>'
       :'<div class="articles-grid">'+arts.map(function(a){
@@ -1842,7 +1889,7 @@
   function renderCalendar(){
     var now=new Date();
     if(_calYear===undefined){ _calYear=now.getFullYear(); _calMonth=now.getMonth(); }
-    var events=allArticles.filter(function(a){return a.category==='イベント';});
+    var events=visibleArticles.filter(function(a){return a.category==='イベント';});
     var eventsByDay={};
     events.forEach(function(a){
       var d=articleEventDate(a);
@@ -1925,7 +1972,7 @@
   /* ---- 月別・年別アーカイブ ---- */
   function renderArchive(){
     var groups={}; /* {year: {month: [articles]}} */
-    allArticles.forEach(function(a){
+    visibleArticles.forEach(function(a){
       var d;
       try{ d=(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():new Date(a.createdAt||0); }catch(e){ d=null; }
       if(!d||isNaN(d)) return;
@@ -1935,7 +1982,7 @@
       groups[y][m].push(a);
     });
     var years=Object.keys(groups).sort(function(a,b){return b-a;});
-    document.getElementById('archive-count').textContent=allArticles.length+'件の記事';
+    document.getElementById('archive-count').textContent=visibleArticles.length+'件の記事';
     if(!years.length){
       document.getElementById('archive-groups').innerHTML='<div class="empty-state"><div class="icon">🗄</div><p>記事がありません</p></div>';
       return;
@@ -1957,7 +2004,7 @@
   }
 
   function openArchiveMonth(y,m){
-    var list=allArticles.filter(function(a){
+    var list=visibleArticles.filter(function(a){
       var d;
       try{ d=(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():new Date(a.createdAt||0); }catch(e){ return false; }
       return !isNaN(d) && d.getFullYear()===y && d.getMonth()===m;
@@ -1974,7 +2021,7 @@
   }
 
   function renderAuthorPage(name){
-    var arts=allArticles.filter(function(a){return (a.author||'編集部')===name;});
+    var arts=visibleArticles.filter(function(a){return (a.author||'編集部')===name;});
     var info=(allAuthors||[]).find(function(x){return x.name===name;})||{};
     var artsHtml=!arts.length
       ?'<div class="empty-state"><div class="icon">📭</div><p>この執筆者の記事はまだありません</p></div>'
@@ -2008,14 +2055,14 @@
   }
 
   function filterByTag(tag){
-    showListView('タグ：#'+tag,allArticles.filter(function(a){return Array.isArray(a.tags)&&a.tags.indexOf(tag)>=0;}));
+    showListView('タグ：#'+tag,visibleArticles.filter(function(a){return Array.isArray(a.tags)&&a.tags.indexOf(tag)>=0;}));
     history.pushState({view:'list',tag:tag},'','#tag/'+encodeURIComponent(tag));
   }
 
   function doSearch(q){
     if(!q.trim()){filterByCategory('all');return;}
     var kw=q.toLowerCase();
-    showListView('「'+q+'」の検索結果',allArticles.filter(function(a){
+    showListView('「'+q+'」の検索結果',visibleArticles.filter(function(a){
       return (a.title&&a.title.toLowerCase().indexOf(kw)>=0)
           ||(a.body&&a.body.replace(/<[^>]*>/g,'').toLowerCase().indexOf(kw)>=0)
           ||(a.category&&a.category.toLowerCase().indexOf(kw)>=0)
@@ -2118,7 +2165,7 @@
   window.addEventListener('popstate',function(){
     var h=location.hash;
     if(!h||h==='#'){showView('top');return;}
-    if(h.startsWith('#article/')){var id=decodeURIComponent(h.slice(9));var a=allArticles.find(function(x){return x.slug===id||x.id===id;});if(a){trackArticleView(a);trackPageView(a);renderArticle(a);showView('article');}}
+    if(h.startsWith('#article/')){var id=decodeURIComponent(h.slice(9));var a=allArticles.find(function(x){return x.slug===id||x.id===id;});if(a){if(isArticleUnlocked(a)){trackArticleView(a);trackPageView(a);}renderArticle(a);showView('article');}}
     else if(h==='#series')          filterByCategory('series');
     else if(h.startsWith('#series/')){var sid=decodeURIComponent(h.slice(8));var s=allSeries.find(function(x){return x.slug===sid||x.id===sid;});if(s){renderSeriesDetail(s);showView('series-detail');}}
     else if(h.startsWith('#calendar/')){var cparts=decodeURIComponent(h.slice(10)).split('-');openCalendarDay(cparts[0],cparts[1]);}
@@ -2136,7 +2183,7 @@
   function handleInitialHash(){
     var h=location.hash;
     if(!h) return;
-    if(h.startsWith('#article/')){var id=decodeURIComponent(h.slice(9));var a=allArticles.find(function(x){return x.slug===id||x.id===id;});if(a){trackArticleView(a);trackPageView(a);renderArticle(a);showView('article');}}
+    if(h.startsWith('#article/')){var id=decodeURIComponent(h.slice(9));var a=allArticles.find(function(x){return x.slug===id||x.id===id;});if(a){if(isArticleUnlocked(a)){trackArticleView(a);trackPageView(a);}renderArticle(a);showView('article');}}
     else if(h==='#series')          filterByCategory('series');
     else if(h.startsWith('#series/')){var sid=decodeURIComponent(h.slice(8));var s=allSeries.find(function(x){return x.slug===sid||x.id===sid;});if(s){renderSeriesDetail(s);showView('series-detail');}}
     else if(h.startsWith('#calendar/')){var cparts=decodeURIComponent(h.slice(10)).split('-');openCalendarDay(cparts[0],cparts[1]);}
@@ -2177,10 +2224,57 @@
     }
   }
 
+  // ヘッダー/フッターの表示レベルを切り替える（normal / minimal / none）
+  function applySpecialLayoutMode(mode){
+    var header = document.getElementById('site-header');
+    var footer = document.getElementById('site-footer');
+    var miniHeader = document.getElementById('special-minimal-header');
+    var breaking = document.getElementById('breaking-bar');
+    if(mode === 'none'){
+      header.style.display = 'none';
+      footer.style.display = 'none';
+      miniHeader.style.display = 'none';
+      if(breaking) breaking.style.display = 'none';
+    } else if(mode === 'minimal'){
+      header.style.display = 'none';
+      footer.style.display = 'none';
+      miniHeader.style.display = 'flex';
+      if(breaking) breaking.style.display = 'none';
+    } else {
+      header.style.display = '';
+      footer.style.display = '';
+      miniHeader.style.display = 'none';
+      if(breaking) breaking.classList.contains('hidden') || (breaking.style.display = '');
+    }
+  }
+  // 特設ページ以外に移動した時に、ヘッダー/フッターを通常状態へ戻す
+  function resetSpecialLayoutMode(){ applySpecialLayoutMode('normal'); }
+
   function renderSpecialPage(page){
     _countdownTimers.forEach(function(t){ clearInterval(t); });
     _countdownTimers = [];
+    applySpecialLayoutMode(page.layoutMode || 'normal');
+
     var wrap = document.getElementById('special-content');
+
+    if(page.pageMode === 'raw'){
+      // 完全HTML/CSS/JSモード：ブロックを使わず丸ごと自由に書ける
+      var styleEl = document.getElementById('sp-raw-style');
+      if(styleEl) styleEl.remove();
+      if(page.rawCss){
+        styleEl = document.createElement('style');
+        styleEl.id = 'sp-raw-style';
+        styleEl.textContent = page.rawCss;
+        document.head.appendChild(styleEl);
+      }
+      wrap.innerHTML = '';
+      var rawWrap = document.createElement('div');
+      var combined = (page.rawHtml||'') + (page.rawJs ? ('<script>'+page.rawJs+'</'+'script>') : '');
+      injectHtmlWithScripts(rawWrap, combined);
+      wrap.appendChild(rawWrap);
+      return;
+    }
+
     wrap.innerHTML = '<div class="sp-page" style="--sp-accent:'+(page.themeColor||'#2d6a4f')+'"></div>';
     var pageEl = wrap.firstElementChild;
     (page.blocks||[]).forEach(function(block){
@@ -2331,7 +2425,7 @@
   document.addEventListener('firebase-ready',function(){_fbReady=true;tryStart();});
   document.addEventListener('DOMContentLoaded',function(){
     initDarkMode();bindEvents();_domReady=true;tryStart();
-    setTimeout(function(){if(!allArticles.length){allArticles=DEMO_ARTICLES;allSeries=DEMO_SERIES;renderAll();handleInitialHash();setDefaultBreaking();}},6000);
+    setTimeout(function(){if(!allArticles.length){allArticles=DEMO_ARTICLES;allSeries=DEMO_SERIES;computeVisibleArticles();renderAll();handleInitialHash();setDefaultBreaking();}},6000);
   });
   </script>
   <script src="tsunami-widget.js"></script>
