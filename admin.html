@@ -210,6 +210,9 @@
     .finput,.fselect{padding:.6rem .8rem;border:1.5px solid var(--border);border-radius:6px;font-size:.88rem;color:var(--text);outline:none;background:var(--card);transition:border-color var(--t),box-shadow var(--t);width:100%}
     .finput:focus,.fselect:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--gpale)}
     .fhint{font-size:.7rem;color:var(--light)}
+    .cat-check-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.5rem .75rem;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;padding:.9rem 1rem}
+    .cat-check-grid label{display:flex;align-items:center;gap:.45rem;font-size:.85rem;cursor:pointer}
+    .cat-check-grid input{width:16px;height:16px;accent-color:var(--green);flex-shrink:0}
     .tprev{max-height:150px;width:100%;object-fit:cover;border-radius:6px;border:1px solid var(--border);margin-top:.5rem;display:none}
     .thint{background:var(--bg);border:1.5px dashed var(--border);border-radius:var(--r);padding:.75rem 1rem;font-size:.78rem;color:var(--muted);line-height:1.8;margin-top:.5rem}
     .thint a{color:var(--green);text-decoration:underline}
@@ -461,14 +464,21 @@
                 <span class="fhint">半角英数字・ハイフンのみ</span>
               </div>
 
-              <div class="frow">
-                <label class="flabel">カテゴリ <span class="req">*</span></label>
-                <select id="f-cat" class="fselect">
-                  <option value="">-- カテゴリを選択 --</option>
-                  <option>まちの話題</option><option>イベント</option><option>空き家活用</option>
-                  <option>商店街</option><option>文化</option><option>インタビュー</option>
-                  <option>学校・子育て</option><option>移住・定住</option><option>お知らせ</option>
-                </select>
+              <div class="frow full">
+                <label class="flabel">カテゴリ（複数選択可） <span class="req">*</span></label>
+                <div class="cat-check-grid" id="f-cat-checks">
+                  <label><input type="checkbox" class="f-cat-check" value="まちの話題"> まちの話題</label>
+                  <label><input type="checkbox" class="f-cat-check" value="イベント"> イベント</label>
+                  <label><input type="checkbox" class="f-cat-check" value="空き家活用"> 空き家活用</label>
+                  <label><input type="checkbox" class="f-cat-check" value="商店街"> 商店街</label>
+                  <label><input type="checkbox" class="f-cat-check" value="文化"> 文化</label>
+                  <label><input type="checkbox" class="f-cat-check" value="インタビュー"> インタビュー</label>
+                  <label><input type="checkbox" class="f-cat-check" value="学校・子育て"> 学校・子育て</label>
+                  <label><input type="checkbox" class="f-cat-check" value="移住・定住"> 移住・定住</label>
+                  <label><input type="checkbox" class="f-cat-check" value="防災"> 防災</label>
+                  <label><input type="checkbox" class="f-cat-check" value="お知らせ"> お知らせ</label>
+                </div>
+                <span class="fhint">例：商店街の店主へのインタビュー記事なら「商店街」と「インタビュー」の両方にチェック</span>
               </div>
 
               <div class="frow">
@@ -2078,6 +2088,17 @@ function updateDraftBadge() {
 // ============================================================
 // ダッシュボード
 // ============================================================
+/* 記事の複数カテゴリ対応ヘルパー（categories配列を優先、旧記事のcategory単一文字列にもフォールバック） */
+function articleCategories(a){
+  if (a && Array.isArray(a.categories) && a.categories.length) return a.categories;
+  return (a && a.category) ? [a.category] : [];
+}
+function categoryTagsHtml(a){
+  var cats = articleCategories(a);
+  if (!cats.length) return '<span class="tag" style="background:#f3f3f3;color:var(--muted)">—</span>';
+  return cats.map(function(c){ return '<span class="tag tag-g">'+c+'</span>'; }).join(' ');
+}
+
 function isArticleScheduled(a){
   try{
     var d = (a.createdAt && a.createdAt.toDate) ? a.createdAt.toDate() : (a.createdAt ? new Date(a.createdAt) : null);
@@ -2088,7 +2109,7 @@ function isArticleScheduled(a){
 function renderDash() {
   document.getElementById('s-total').textContent = articles.length;
   document.getElementById('s-feat').textContent  = articles.filter(function(a){ return a.featured; }).length;
-  document.getElementById('s-cat').textContent   = new Set(articles.map(function(a){ return a.category; }).filter(Boolean)).size;
+  document.getElementById('s-cat').textContent   = new Set(articles.reduce(function(acc,a){ return acc.concat(articleCategories(a)); },[])).size;
   document.getElementById('s-series').textContent = series.length;
   document.getElementById('s-authors').textContent = authors.length;
   document.getElementById('s-spots').textContent = spots.length;
@@ -2104,7 +2125,7 @@ function renderDash() {
         return '<tr>'
           +'<td>'+(a.thumbnail?'<img src="'+a.thumbnail+'" class="rthumb"/>':'<div class="rthumb-ph">📰</div>')+'</td>'
           +'<td style="font-weight:600;font-size:.83rem">'+a.title+'</td>'
-          +'<td><span class="tag tag-g">'+(a.category||'—')+'</span></td>'
+          +'<td>'+categoryTagsHtml(a)+'</td>'
           +'<td style="font-size:.76rem;white-space:nowrap">'+fmtDate(a.createdAt)+'</td>'
           +'<td><button class="btn btn-o btn-sm" onclick="startEdit(\''+a.id+'\')">編集</button></td>'
           +'</tr>';
@@ -2123,7 +2144,7 @@ function renderArticles(filter) {
     base = base.filter(function(a){ return a.authorUid === myUid; });
   }
   var list = filter
-    ? base.filter(function(a){ return (a.title||'').indexOf(filter)>=0||(a.category||'').indexOf(filter)>=0; })
+    ? base.filter(function(a){ return (a.title||'').indexOf(filter)>=0||articleCategories(a).some(function(c){return c.indexOf(filter)>=0;}); })
     : base;
   var tbody = document.getElementById('art-tbody');
   var empty = document.getElementById('art-empty');
@@ -2141,7 +2162,7 @@ function renderArticles(filter) {
     return '<tr>'
       +'<td>'+(a.thumbnail?'<img src="'+a.thumbnail+'" class="rthumb" loading="lazy"/>':'<div class="rthumb-ph">📰</div>')+'</td>'
       +'<td><div style="font-weight:600;font-size:.83rem">'+a.title+'</div><div style="font-size:.7rem;color:var(--light)">/'+(a.slug||a.id)+'</div>'+(a.featured?'<span class="tag tag-y">⭐注目</span>':'')+scheduleBadge+unlistedBadge+'</td>'
-      +'<td><span class="tag tag-g">'+(a.category||'—')+'</span></td>'
+      +'<td>'+categoryTagsHtml(a)+'</td>'
       +'<td style="font-size:.78rem">'+(a.author||'—')+'</td>'
       +'<td style="font-size:.76rem;white-space:nowrap">'+fmtDate(a.createdAt)+'</td>'
       +'<td><div class="acts">'+acts+'</div></td></tr>';
@@ -2369,7 +2390,7 @@ function createSpotFromSubmission() {
 async function approveSubmission(id, mode) {
   var d = getFormData();
   d.body = getBodyHtml();
-  if (!d.title||!d.slug||!d.category) { toast('タイトル・スラッグ・カテゴリを入力してください','warn'); return; }
+  if (!d.title||!d.slug||!d.categories.length) { toast('タイトル・スラッグ・カテゴリを入力してください','warn'); return; }
 
   var editSummary = '';
   if (mode === 'edited') {
@@ -3006,11 +3027,28 @@ function toggleScheduleField(){
   document.getElementById('schedule-datetime-wrap').style.display = on ? 'block' : 'none';
 }
 
+function getFormCategories() {
+  return Array.from(document.querySelectorAll('.f-cat-check:checked')).map(function(el){ return el.value; });
+}
+function setFormCategories(cats) {
+  cats = cats || [];
+  document.querySelectorAll('.f-cat-check').forEach(function(el){ el.checked = cats.indexOf(el.value) >= 0; });
+  onCatCheckChange();
+}
+function onCatCheckChange() {
+  var cats = getFormCategories();
+  var isEvent = cats.indexOf('イベント') >= 0;
+  document.getElementById('f-event-wrap').style.display = isEvent ? 'flex' : 'none';
+  document.getElementById('f-eventtime-wrap').style.display = isEvent ? 'flex' : 'none';
+}
+
 function getFormData() {
+  var cats = getFormCategories();
   return {
     title:     document.getElementById('f-title').value.trim(),
     slug:      document.getElementById('f-slug').value.trim(),
-    category:  document.getElementById('f-cat').value,
+    categories: cats,
+    category:  cats[0] || '', /* 既存機能（トップページ表示・検索等）との互換性のため、先頭カテゴリを引き続き保持 */
     author:    document.getElementById('f-author').value.trim() || '編集部',
     seriesId:  document.getElementById('f-series').value || '',
     mapSpotId: document.getElementById('f-mapspot').value || '',
@@ -3028,15 +3066,15 @@ function getFormData() {
 function setFormData(d) {
   document.getElementById('f-title').value  = d.title    || '';
   document.getElementById('f-slug').value   = d.slug     || '';
-  document.getElementById('f-cat').value    = d.category || '';
+  /* categories配列があればそれを使い、旧記事（category単一文字列のみ）はそれを1件として扱う */
+  var cats = (Array.isArray(d.categories) && d.categories.length) ? d.categories : (d.category ? [d.category] : []);
+  setFormCategories(cats);
   document.getElementById('f-author').value = d.author   || '';
   document.getElementById('f-series').value = d.seriesId || '';
   populateSpotsSelect();
   document.getElementById('f-mapspot').value = d.mapSpotId || '';
   document.getElementById('f-eventdate').value = d.eventDate || '';
   document.getElementById('f-eventtime').value = d.eventTime || '';
-  document.getElementById('f-event-wrap').style.display = (d.category === 'イベント') ? 'flex' : 'none';
-  document.getElementById('f-eventtime-wrap').style.display = (d.category === 'イベント') ? 'flex' : 'none';
   document.getElementById('f-tags').value   = (d.tags||[]).join(', ');
   document.getElementById('f-thumb').value  = d.thumbnail|| '';
   document.getElementById('f-feat').checked = !!d.featured;
@@ -3082,7 +3120,7 @@ async function pubArticle() {
   var d = getFormData();
   if (!d.title)    { toast('タイトルを入力してください','warn'); return; }
   if (!d.slug)     { toast('スラッグを入力してください','warn'); return; }
-  if (!d.category) { toast('カテゴリを選択してください','warn'); return; }
+  if (!d.categories.length) { toast('カテゴリを1つ以上選択してください','warn'); return; }
   if (!d.body||d.body==='<br>') { toast('本文を入力してください','warn'); return; }
   if (d.unlisted && !d.accessPassword) { toast('限定公開にする場合はパスワードを入力してください（自動生成も使えます）','warn'); return; }
 
@@ -3249,7 +3287,7 @@ function renderDrafts() {
       +'<div class="rthumb-ph">📝</div>'
       +'<div class="dinfo">'
       +'<div class="dtitle">'+d.title+'</div>'
-      +'<div class="dmeta">'+(d.category||'カテゴリ未設定')+' ・ 保存: '+date+'</div>'
+      +'<div class="dmeta">'+(articleCategories(d).join('、')||'カテゴリ未設定')+' ・ 保存: '+date+'</div>'
       +'</div>'
       +'<div class="acts" style="flex-shrink:0">'
       +'<button class="btn btn-o btn-sm" onclick="loadDraft(\''+d._draftId+'\')">✏️ 編集</button>'
@@ -3283,9 +3321,10 @@ async function pubDraft(id) {
   var drafts = getDrafts();
   var d = drafts.find(function(x){ return x._draftId===id; });
   if (!d) return;
-  if (!d.title||!d.slug||!d.category) { toast('タイトル・スラッグ・カテゴリが必要です','warn'); loadDraft(id); return; }
+  if (!d.title||!d.slug||!articleCategories(d).length) { toast('タイトル・スラッグ・カテゴリが必要です','warn'); loadDraft(id); return; }
   try {
-    var data = {title:d.title,slug:d.slug,category:d.category,author:d.author||'編集部',tags:d.tags||[],thumbnail:d.thumbnail||'',featured:!!d.featured,body:d.body||'',createdAt:window._ts()};
+    var cats = articleCategories(d);
+    var data = {title:d.title,slug:d.slug,categories:cats,category:cats[0]||'',author:d.author||'編集部',tags:d.tags||[],thumbnail:d.thumbnail||'',featured:!!d.featured,body:d.body||'',createdAt:window._ts()};
     await window._addDoc('articles', data);
     delDraft(id);
     await loadArticles();
@@ -4194,7 +4233,8 @@ async function doImport() {
     var item=data[i];
     if (!item.title||!item.slug||existing.indexOf(item.slug)>=0){ skipped++; continue; }
     try {
-      await window._addDoc('articles',{title:item.title,slug:item.slug,category:item.category||'',body:item.body||'',author:item.author||'編集部',tags:item.tags||[],thumbnail:item.thumbnail||'',featured:!!item.featured,seriesId:item.seriesId||'',createdAt:window._ts()});
+      var itemCats = articleCategories(item); /* categories配列があればそれを、旧形式のcategory単一文字列にも対応 */
+      await window._addDoc('articles',{title:item.title,slug:item.slug,categories:itemCats,category:itemCats[0]||'',body:item.body||'',author:item.author||'編集部',tags:item.tags||[],thumbnail:item.thumbnail||'',featured:!!item.featured,seriesId:item.seriesId||'',createdAt:window._ts()});
       existing.push(item.slug); added++;
     } catch(e){ skipped++; }
   }
@@ -4311,11 +4351,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!sl.value.trim()) sl.value = 'article-'+Date.now();
   });
 
-  // カテゴリが「イベント」のときだけイベント日時欄を表示
-  document.getElementById('f-cat').addEventListener('change', function (e) {
-    var on = e.target.value === 'イベント';
-    document.getElementById('f-event-wrap').style.display = on ? 'flex' : 'none';
-    document.getElementById('f-eventtime-wrap').style.display = on ? 'flex' : 'none';
+  // カテゴリチェックが変わるたびに、「イベント」が含まれるかどうかでイベント日時欄の表示を切り替える
+  document.querySelectorAll('.f-cat-check').forEach(function(el){
+    el.addEventListener('change', onCatCheckChange);
   });
 
   // 連載・特集フォーム: タイトル→スラッグ自動生成
