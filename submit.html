@@ -231,6 +231,7 @@
                 <option>インタビュー</option>
                 <option>学校・子育て</option>
                 <option>移住・定住</option>
+                <option>防災</option>
                 <option>お知らせ</option>
               </select>
               <span class="ferr" id="err-cat">カテゴリを選択してください</span>
@@ -680,17 +681,17 @@
         status_url: location.origin + location.pathname + '#status'
       });
 
-      // 管理者への通知メール
+      // 管理者への通知メールは、AIによる自動チェックの結果を見てから
+      // GAS側が適切な内容（要確認 or AIチェック済み）を判断して送信する
       sendGasMail({
-        type: 'admin_notify',
-        to: ADMIN_NOTIFY_EMAIL,
-        name: data.authorName,
-        from_email: data.authorEmail,
+        type: 'submission_ai_check',
+        id: ref.id,
         title: data.title,
+        body: data.body,
         category: data.category,
-        submitted_at: submittedAtStr,
-        body: bodyExcerpt,
-        admin_url: ADMIN_URL // ← 固定のURLを使いたい場合はこの下の定数を書き換えてください
+        authorName: data.authorName,
+        authorEmail: data.authorEmail,
+        submitted_at: submittedAtStr
       });
 
       // 完了表示
