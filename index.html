@@ -467,7 +467,7 @@
     .main-feature-img{width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--bg-sub)}
     .main-feature-img-ph{width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,var(--accent-pale),var(--bg-sub));display:flex;align-items:center;justify-content:center;color:var(--text-light);font-size:3rem}
     .main-feature-body{padding:1.5rem 2rem 2rem}
-    .feature-cat-tag{display:inline-block;background:var(--accent);color:#fff;font-size:.72rem;font-weight:700;letter-spacing:.1em;padding:.2rem .6rem;border-radius:3px;margin-bottom:.75rem}
+    .feature-cat-tag{display:inline-block;background:var(--accent);color:#fff;font-size:.72rem;font-weight:700;letter-spacing:.1em;padding:.2rem .6rem;border-radius:3px;margin-bottom:.75rem;margin-right:.35rem}
     .main-feature-title{font-family:var(--serif);font-size:clamp(1.3rem,2.8vw,1.75rem);font-weight:700;line-height:1.45;margin-bottom:.75rem}
     .main-feature-lead{font-size:.92rem;color:var(--text-muted);line-height:1.8;margin-bottom:1.25rem;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
     .feature-meta{display:flex;align-items:center;gap:1rem;font-size:.78rem;color:var(--text-light);border-top:1px solid var(--border);padding-top:1rem;flex-wrap:wrap}
@@ -503,12 +503,17 @@
     .article-map-link{display:inline-flex;align-items:center;gap:.4rem;background:var(--accent);color:#fff;padding:.5rem 1.1rem;border-radius:20px;font-size:.82rem;font-weight:700;margin-top:.9rem;transition:background var(--tr)}
     .article-map-link:hover{background:var(--accent-light)}
     .news-info{flex:1;min-width:0}
-    .news-cat-tag{display:inline-block;font-size:.67rem;font-weight:700;letter-spacing:.08em;color:var(--accent);background:var(--accent-pale);padding:.1rem .45rem;border-radius:3px;margin-bottom:.3rem}
+    .news-cat-tag{display:inline-block;font-size:.67rem;font-weight:700;letter-spacing:.08em;color:var(--accent);background:var(--accent-pale);padding:.1rem .45rem;border-radius:3px;margin-bottom:.3rem;margin-right:.25rem}
     .news-item-title{font-size:.82rem;font-weight:600;line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
     .news-item-date{font-size:.7rem;color:var(--text-light);margin-top:.3rem}
+    .news-more-btn{display:flex;align-items:center;justify-content:center;gap:.4rem;width:100%;padding:.75rem 1rem;margin-top:.6rem;background:var(--bg-card);border:1.5px dashed var(--border);border-radius:var(--radius);color:var(--accent);font-size:.82rem;font-weight:700;transition:background var(--tr),border-color var(--tr)}
+    .news-more-btn:hover{background:var(--accent-pale);border-color:var(--accent)}
     .tag-section{margin-top:1.5rem}
     .tag-section-title{font-size:.75rem;font-weight:700;letter-spacing:.12em;color:var(--text-light);margin-bottom:.6rem}
-    .tag-cloud{display:flex;flex-wrap:wrap;gap:.4rem}
+    .tag-cloud{display:flex;flex-wrap:wrap;gap:.4rem;max-height:104px;overflow:hidden;transition:max-height .3s ease}
+    .tag-cloud.expanded{max-height:2000px}
+    .tag-show-all-btn{display:none;margin-top:.6rem;font-size:.76rem;font-weight:700;color:var(--accent);background:none;border:none;padding:0;cursor:pointer}
+    .tag-show-all-btn:hover{text-decoration:underline}
     .tag-chip{font-size:.75rem;padding:.3rem .7rem;background:var(--bg-sub);border:1px solid var(--border);border-radius:20px;color:var(--text-muted);cursor:pointer;transition:background var(--tr),border-color var(--tr),color var(--tr)}
     .tag-chip:hover,.tag-chip.active{background:var(--accent-pale);border-color:var(--accent);color:var(--accent)}
 
@@ -516,8 +521,9 @@
     #article-view{display:none}
     #article-view.visible{display:block}
     .article-header{max-width:760px;margin:0 auto 2rem;padding:2rem 0 0}
-    .article-cat-badge{display:inline-flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--accent);font-weight:700;letter-spacing:.1em;margin-bottom:1rem}
-    .article-cat-badge::before{content:'';width:12px;height:2px;background:var(--accent)}
+    .article-cat-badge{display:flex;flex-wrap:wrap;gap:.6rem 1rem;margin-bottom:1rem}
+    .article-cat-badge-item{display:inline-flex;align-items:center;gap:.5rem;font-size:.78rem;color:var(--accent);font-weight:700;letter-spacing:.1em}
+    .article-cat-badge-item::before{content:'';width:12px;height:2px;background:var(--accent)}
     .article-title{font-family:var(--serif);font-size:clamp(1.5rem,4vw,2.4rem);font-weight:900;line-height:1.4;margin-bottom:1rem}
     .article-meta{display:flex;flex-wrap:wrap;gap:1.2rem;font-size:.8rem;color:var(--text-muted);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:.75rem 0}
     .article-hero{width:100%;max-width:760px;margin:1.5rem auto;aspect-ratio:16/9;object-fit:cover;border-radius:var(--radius)}
@@ -564,6 +570,22 @@
     .list-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
     .list-title{font-family:var(--serif);font-size:1.4rem;font-weight:700}
     .list-count{font-size:.82rem;color:var(--text-muted)}
+    .list-controls{display:flex;flex-wrap:wrap;gap:1rem;align-items:center;background:var(--bg-sub);border:1px solid var(--border);border-radius:var(--radius);padding:.75rem 1rem;margin-bottom:1.25rem}
+    .list-control-item{display:flex;align-items:center;gap:.5rem}
+    .list-control-item label{font-size:.78rem;color:var(--text-muted);font-weight:600;white-space:nowrap}
+    .list-control-item select{padding:.4rem .7rem;border:1.5px solid var(--border);border-radius:6px;font-size:.82rem;color:var(--text-main);background:var(--bg-card);font-family:var(--sans);outline:none;transition:border-color var(--tr)}
+    .list-control-item select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-pale)}
+    .list-control-item.hidden{display:none}
+    .cat-multiselect{position:relative}
+    .cat-ms-btn{padding:.4rem .8rem;border:1.5px solid var(--border);border-radius:6px;font-size:.82rem;color:var(--text-main);background:var(--bg-card);font-family:var(--sans);cursor:pointer;transition:border-color var(--tr);white-space:nowrap}
+    .cat-ms-btn:hover{border-color:var(--accent)}
+    .cat-multiselect.open .cat-ms-btn{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-pale)}
+    .cat-ms-panel{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:50;min-width:200px;max-height:280px;overflow-y:auto;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px var(--shadow);padding:.5rem}
+    .cat-multiselect.open .cat-ms-panel{display:block}
+    .cat-ms-option{display:flex;align-items:center;gap:.55rem;padding:.4rem .5rem;border-radius:5px;font-size:.85rem;cursor:pointer;transition:background var(--tr)}
+    .cat-ms-option:hover{background:var(--bg-sub)}
+    .cat-ms-option input{width:15px;height:15px;accent-color:var(--accent);flex-shrink:0}
+    .cat-ms-divider{height:1px;background:var(--border);margin:.4rem 0}
     .articles-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.25rem}
     .grid-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:transform var(--tr),box-shadow var(--tr)}
     .grid-card:hover{transform:translateY(-4px);box-shadow:0 8px 24px var(--shadow)}
@@ -894,6 +916,7 @@
         <span class="nav-link active" data-cat="all">すべて</span>
         <span class="nav-link" data-cat="まちの話題">まちの話題</span>
         <span class="nav-link" data-cat="イベント">イベント</span>
+        <span class="nav-link" data-cat="防災">防災</span>
         <span class="nav-link" data-cat="インタビュー">インタビュー</span>
         <span class="nav-link" data-cat="series">連載・特集</span>
         <span class="nav-link" data-cat="calendar">イベントカレンダー</span>
@@ -914,6 +937,7 @@
     <span class="nav-link" data-cat="商店街">商店街</span>
     <span class="nav-link" data-cat="文化">文化</span>
     <span class="nav-link" data-cat="インタビュー">インタビュー</span>
+    <span class="nav-link" data-cat="防災">防災</span>
     <span class="nav-link" data-cat="series">連載・特集</span>
     <span class="nav-link" data-cat="calendar">イベントカレンダー</span>
     <span class="nav-link" data-cat="archive">アーカイブ</span>
@@ -942,6 +966,7 @@
       <button class="cat-btn" data-cat="学校・子育て">学校・子育て</button>
       <button class="cat-btn" data-cat="移住・定住">移住・定住</button>
       <button class="cat-btn" data-cat="お知らせ">お知らせ</button>
+      <button class="cat-btn" data-cat="防災">🚨 防災</button>
       <button class="cat-btn" data-cat="series">📚 連載・特集</button>
       <button class="cat-btn" data-cat="calendar">📅 イベントカレンダー</button>
       <button class="cat-btn" data-cat="archive">🗄 アーカイブ</button>
@@ -977,9 +1002,11 @@
                 <div class="news-item"><div class="skeleton" style="width:72px;height:52px;border-radius:3px;flex-shrink:0"></div><div style="flex:1"><div class="skeleton skel-text" style="margin-bottom:.4rem"></div><div class="skeleton skel-text" style="width:70%"></div></div></div>
               </div>
             </div>
+            <button class="news-more-btn" id="news-more-btn" onclick="openAllArticlesList()">📰 記事一覧をもっと見る →</button>
             <div class="tag-section" id="tag-section">
               <div class="tag-section-title">🏷 タグ一覧</div>
               <div class="tag-cloud" id="tag-cloud"></div>
+              <button class="tag-show-all-btn" id="tag-show-all-btn" onclick="toggleTagCloud()" style="display:none">すべて表示 ▾</button>
             </div>
           </div>
         </aside>
@@ -995,6 +1022,23 @@
       <div class="list-header">
         <h2 class="list-title" id="list-title"></h2>
         <span class="list-count" id="list-count"></span>
+      </div>
+      <div class="list-controls">
+        <div class="list-control-item">
+          <label for="list-sort">並び替え</label>
+          <select id="list-sort">
+            <option value="new">新しい順</option>
+            <option value="old">古い順</option>
+            <option value="title">タイトル順</option>
+          </select>
+        </div>
+        <div class="list-control-item" id="list-filter-wrap">
+          <label>ジャンルで絞り込み</label>
+          <div class="cat-multiselect" id="cat-multiselect">
+            <button type="button" class="cat-ms-btn" id="cat-ms-btn" onclick="toggleCatMultiSelect(event)">すべてのジャンル ▾</button>
+            <div class="cat-ms-panel" id="cat-ms-panel"></div>
+          </div>
+        </div>
       </div>
       <div class="articles-grid" id="articles-grid"></div>
     </section>
@@ -1064,6 +1108,7 @@
           <a data-cat-foot="文化">文化</a>
           <a data-cat-foot="インタビュー">インタビュー</a>
           <a data-cat-foot="移住・定住">移住・定住</a>
+          <a data-cat-foot="防災">防災</a>
         </div>
       </div>
       <div>
@@ -1089,7 +1134,27 @@
   var allSeries = [];
   var currentView = 'top';
 
-  var CAT_EMOJI = {'まちの話題':'🏘️','イベント':'🎉','空き家活用':'🏠','商店街':'🛍️','文化':'🎨','インタビュー':'🎙️','学校・子育て':'📚','移住・定住':'🌱','お知らせ':'📢'};
+  var CAT_EMOJI = {'まちの話題':'🏘️','イベント':'🎉','空き家活用':'🏠','商店街':'🛍️','文化':'🎨','インタビュー':'🎙️','学校・子育て':'📚','移住・定住':'🌱','お知らせ':'📢','防災':'🚨'};
+  var ALL_CATEGORIES = ['まちの話題','イベント','空き家活用','商店街','文化','インタビュー','学校・子育て','移住・定住','防災','お知らせ'];
+
+  /* ---- 記事の複数カテゴリ対応ヘルパー ----
+     新しい記事は categories:['商店街','インタビュー'] のような配列を持つ。
+     旧記事（categoryが単一文字列のみ）でも動くよう、常にこの関数経由で配列として扱う。 */
+  function articleCats(a){
+    if(a && Array.isArray(a.categories) && a.categories.length) return a.categories;
+    return (a && a.category) ? [a.category] : [];
+  }
+  function primaryCat(a){ var c=articleCats(a); return c.length?c[0]:''; }
+  function catTagsHtml(a,cls){
+    var cats=articleCats(a);
+    if(!cats.length) return '<span class="'+cls+'">記事</span>';
+    return cats.map(function(c){return '<span class="'+cls+'">'+c+'</span>';}).join('');
+  }
+  function gridCardHtml(a){
+    return '<article class="grid-card" onclick="openArticle(\''+a.id+'\')">'
+      +(a.thumbnail?'<img src="'+a.thumbnail+'" class="grid-card-img" loading="lazy"/>':'<div class="grid-card-img-ph">'+(CAT_EMOJI[primaryCat(a)]||'📰')+'</div>')
+      +'<div class="grid-card-body">'+catTagsHtml(a,'news-cat-tag')+'<div class="grid-card-title">'+a.title+'</div><div class="grid-card-date">'+fmtDate(a.createdAt)+'</div></div></article>';
+  }
 
   /* ---- メンテナンス設定 ---- */
   /* ---- アンカツMAP連携 ---- */
@@ -1517,17 +1582,19 @@
     renderTagCloud();
   }
 
+  var currentFeaturedId=null;
   function renderFeature(){
     var feat=visibleArticles.find(function(a){return a.featured;})||visibleArticles[0];
     if(!feat) return;
+    currentFeaturedId=feat.id;
     var img=feat.thumbnail
       ?'<img src="'+feat.thumbnail+'" class="main-feature-img" alt="'+feat.title+'" />'
-      :'<div class="main-feature-img-ph">'+(CAT_EMOJI[feat.category]||'📰')+'</div>';
+      :'<div class="main-feature-img-ph">'+(CAT_EMOJI[primaryCat(feat)]||'📰')+'</div>';
     var imgWrap='<div class="thumb-map-wrap">'+img+mapPinBadge(feat,'lg')+'</div>';
     document.getElementById('feature-card').innerHTML=
       '<article class="main-feature-card" onclick="openArticle(\''+feat.id+'\')">'
       +imgWrap+'<div class="main-feature-body">'
-      +'<span class="feature-cat-tag">'+(feat.category||'記事')+'</span>'
+      +catTagsHtml(feat,'feature-cat-tag')
       +'<h2 class="main-feature-title">'+feat.title+'</h2>'
       +'<p class="main-feature-lead">'+(feat.body?feat.body.replace(/<[^>]*>/g,''):'')+'</p>'
       +'<div class="feature-meta"><span>✍️ '+(feat.author||'編集部')+'</span><span>📅 '+fmtDate(feat.createdAt)+'</span>'
@@ -1538,7 +1605,7 @@
     if(rel.length){
       document.getElementById('related-grid').innerHTML=rel.map(function(a){
         return '<div class="related-card" onclick="openArticle(\''+a.id+'\')"> '
-          +(a.thumbnail?'<img src="'+a.thumbnail+'" class="related-thumb" loading="lazy"/>':'<div class="related-thumb-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>')
+          +(a.thumbnail?'<img src="'+a.thumbnail+'" class="related-thumb" loading="lazy"/>':'<div class="related-thumb-ph">'+(CAT_EMOJI[primaryCat(a)]||'📰')+'</div>')
           +'<div class="related-card-title">'+a.title+'</div></div>';
       }).join('');
       document.getElementById('related-articles').style.display='';
@@ -1546,25 +1613,47 @@
   }
 
   function renderNewsList(){
-    document.getElementById('news-list').innerHTML=visibleArticles.slice(0,12).map(function(a){
+    /* 注目記事（トップ記事）は既にメインで表示済みのため、サイドバーには
+       それ以外の記事から先頭7件を抜粋して表示する */
+    var excerpt=visibleArticles.filter(function(a){return a.id!==currentFeaturedId;}).slice(0,7);
+    document.getElementById('news-list').innerHTML=excerpt.map(function(a){
       return '<div class="news-item" onclick="openArticle(\''+a.id+'\')"> '
         +'<div class="thumb-map-wrap">'
-        +(a.thumbnail?'<img src="'+a.thumbnail+'" class="news-thumb" loading="lazy"/>':'<div class="news-thumb-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>')
+        +(a.thumbnail?'<img src="'+a.thumbnail+'" class="news-thumb" loading="lazy"/>':'<div class="news-thumb-ph">'+(CAT_EMOJI[primaryCat(a)]||'📰')+'</div>')
         +mapPinBadge(a)
         +'</div>'
-        +'<div class="news-info"><span class="news-cat-tag">'+(a.category||'ニュース')+'</span>'
+        +'<div class="news-info">'+catTagsHtml(a,'news-cat-tag')
         +'<div class="news-item-title">'+a.title+'</div>'
         +'<div class="news-item-date">'+fmtDate(a.createdAt)+'</div></div></div>';
     }).join('');
+    var moreBtn=document.getElementById('news-more-btn');
+    if(moreBtn) moreBtn.style.display = visibleArticles.length>excerpt.length ? '' : 'none';
   }
 
   function renderTagCloud(){
     var tags=[];
     visibleArticles.forEach(function(a){if(Array.isArray(a.tags))a.tags.forEach(function(t){if(tags.indexOf(t)<0)tags.push(t);});});
     if(!tags.length){document.getElementById('tag-section').style.display='none';return;}
-    document.getElementById('tag-cloud').innerHTML=tags.map(function(t){
+    document.getElementById('tag-section').style.display='';
+    var cloud=document.getElementById('tag-cloud');
+    cloud.innerHTML=tags.map(function(t){
       return '<button class="tag-chip" onclick="filterByTag(\''+t+'\')"> #'+t+'</button>';
     }).join('');
+    /* タグは3行分の高さに制限しておき、はみ出す場合だけ「すべて表示」ボタンを出す */
+    cloud.classList.remove('expanded');
+    var btn=document.getElementById('tag-show-all-btn');
+    btn.textContent='すべて表示 ▾';
+    btn.style.display='none';
+    setTimeout(function(){
+      if(cloud.scrollHeight>cloud.clientHeight+4) btn.style.display='block';
+    },0);
+  }
+
+  function toggleTagCloud(){
+    var cloud=document.getElementById('tag-cloud');
+    var btn=document.getElementById('tag-show-all-btn');
+    var expanded=cloud.classList.toggle('expanded');
+    btn.textContent = expanded ? '閉じる ▴' : 'すべて表示 ▾';
   }
 
   /* ---- ビュー切替 ---- */
@@ -1631,7 +1720,7 @@
     if(!isArticleUnlocked(a)){ renderArticleGate(a); return; }
     var img=a.thumbnail
       ?'<img src="'+a.thumbnail+'" class="article-hero" alt="'+a.title+'" />'
-      :'<div class="article-hero-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>';
+      :'<div class="article-hero-ph">'+(CAT_EMOJI[primaryCat(a)]||'📰')+'</div>';
     var tags=Array.isArray(a.tags)?a.tags.map(function(t){return '<button class="tag-chip" onclick="filterByTag(\''+t+'\')">'+t+'</button>';}).join(''):'';
     var seriesBadge='';
     if(a.seriesId){
@@ -1656,7 +1745,7 @@
     document.getElementById('article-content').innerHTML=
       '<header class="article-header">'
       +seriesBadge
-      +'<div class="article-cat-badge">'+(a.category||'記事')+'</div>'
+      +'<div class="article-cat-badge">'+catTagsHtml(a,'article-cat-badge-item')+'</div>'
       +'<h1 class="article-title">'+a.title+'</h1>'
       +'<div class="article-meta"><span>✍️ <span class="author-name-link" onclick="openAuthor(\''+(a.author||'編集部').replace(/'/g,"\\'")+'\')">'+(a.author||'編集部')+'</span></span><span>📅 '+fmtDate(a.createdAt)+'</span>'+articleViewCountHtml(a)+'</div>'
       +mapLink
@@ -1823,7 +1912,7 @@
       document.title='アーカイブ | アンカツ＋';
       return;
     }
-    showListView('カテゴリ：'+cat,visibleArticles.filter(function(a){return a.category===cat;}));
+    showListView('カテゴリ：'+cat,visibleArticles.filter(function(a){return articleCats(a).indexOf(cat)>=0;}),{hideCategoryFilter:true});
     history.pushState({view:'list',cat:cat},'','#cat/'+encodeURIComponent(cat));
   }
 
@@ -1858,9 +1947,7 @@
     var artsHtml=!arts.length
       ?'<div class="empty-state"><div class="icon">📭</div><p>この連載・特集にはまだ記事がありません</p></div>'
       :'<div class="articles-grid">'+arts.map(function(a){
-          return '<article class="grid-card" onclick="openArticle(\''+a.id+'\')"> '
-            +(a.thumbnail?'<img src="'+a.thumbnail+'" class="grid-card-img" loading="lazy"/>':'<div class="grid-card-img-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>')
-            +'<div class="grid-card-body"><span class="news-cat-tag">'+(a.category||'')+'</span><div class="grid-card-title">'+a.title+'</div><div class="grid-card-date">'+fmtDate(a.createdAt)+'</div></div></article>';
+          return gridCardHtml(a);
         }).join('')+'</div>';
     document.getElementById('series-detail-content').innerHTML=
       '<div class="series-detail-header">'
@@ -1889,7 +1976,7 @@
   function renderCalendar(){
     var now=new Date();
     if(_calYear===undefined){ _calYear=now.getFullYear(); _calMonth=now.getMonth(); }
-    var events=visibleArticles.filter(function(a){return a.category==='イベント';});
+    var events=visibleArticles.filter(function(a){return articleCats(a).indexOf('イベント')>=0;});
     var eventsByDay={};
     events.forEach(function(a){
       var d=articleEventDate(a);
@@ -1952,9 +2039,7 @@
     }
     wrap.innerHTML='<div class="cal-day-events-title">'+y+'年'+(m+1)+'月'+day+'日 のイベント記事（'+evs.length+'件）</div>'
       +'<div class="articles-grid">'+evs.map(function(a){
-        return '<article class="grid-card" onclick="openArticle(\''+a.id+'\')">'
-          +(a.thumbnail?'<img src="'+a.thumbnail+'" class="grid-card-img" loading="lazy"/>':'<div class="grid-card-img-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>')
-          +'<div class="grid-card-body"><span class="news-cat-tag">'+(a.category||'')+'</span><div class="grid-card-title">'+a.title+'</div><div class="grid-card-date">'+fmtDate(a.createdAt)+'</div></div></article>';
+        return gridCardHtml(a);
       }).join('')+'</div>';
   }
 
@@ -2026,9 +2111,7 @@
     var artsHtml=!arts.length
       ?'<div class="empty-state"><div class="icon">📭</div><p>この執筆者の記事はまだありません</p></div>'
       :'<div class="articles-grid">'+arts.map(function(a){
-          return '<article class="grid-card" onclick="openArticle(\''+a.id+'\')">'
-            +(a.thumbnail?'<img src="'+a.thumbnail+'" class="grid-card-img" loading="lazy"/>':'<div class="grid-card-img-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>')
-            +'<div class="grid-card-body"><span class="news-cat-tag">'+(a.category||'')+'</span><div class="grid-card-title">'+a.title+'</div><div class="grid-card-date">'+fmtDate(a.createdAt)+'</div></div></article>';
+          return gridCardHtml(a);
         }).join('')+'</div>';
     document.getElementById('author-content').innerHTML=
       '<div class="author-header">'
@@ -2065,23 +2148,105 @@
     showListView('「'+q+'」の検索結果',visibleArticles.filter(function(a){
       return (a.title&&a.title.toLowerCase().indexOf(kw)>=0)
           ||(a.body&&a.body.replace(/<[^>]*>/g,'').toLowerCase().indexOf(kw)>=0)
-          ||(a.category&&a.category.toLowerCase().indexOf(kw)>=0)
+          ||(articleCats(a).some(function(c){return c.toLowerCase().indexOf(kw)>=0;}))
           ||(Array.isArray(a.tags)&&a.tags.some(function(t){return t.toLowerCase().indexOf(kw)>=0;}));
     }));
     history.pushState({view:'list',q:q},'','#search/'+encodeURIComponent(q));
   }
 
-  function showListView(title,articles){
-    document.getElementById('list-title').textContent=title;
-    document.getElementById('list-count').textContent=articles.length+'件';
-    document.getElementById('articles-grid').innerHTML=!articles.length
-      ?'<div class="empty-state" style="grid-column:1/-1"><div class="icon">📭</div><p>該当する記事がありません</p></div>'
-      :articles.map(function(a){
-          return '<article class="grid-card" onclick="openArticle(\''+a.id+'\')"> '
-            +(a.thumbnail?'<img src="'+a.thumbnail+'" class="grid-card-img" loading="lazy"/>':'<div class="grid-card-img-ph">'+(CAT_EMOJI[a.category]||'📰')+'</div>')
-            +'<div class="grid-card-body"><span class="news-cat-tag">'+(a.category||'')+'</span><div class="grid-card-title">'+a.title+'</div><div class="grid-card-date">'+fmtDate(a.createdAt)+'</div></div></article>';
+  var _listBaseArticles=[]; /* 現在の一覧ビューの元データ（並び替え・絞り込みの対象） */
+  var _listSelectedCats=[]; /* ジャンル絞り込みで選択中のカテゴリ（空＝すべて） */
+
+  function populateListFilterOptions(){
+    var panel=document.getElementById('cat-ms-panel');
+    if(!panel) return;
+    panel.innerHTML='<label class="cat-ms-option"><input type="checkbox" id="cat-ms-all" checked onchange="onCatMsAllChange()"> すべて</label>'
+      +'<div class="cat-ms-divider"></div>'
+      +ALL_CATEGORIES.map(function(c){
+          return '<label class="cat-ms-option"><input type="checkbox" class="cat-ms-check" value="'+c+'" onchange="onCatMsOptionChange()"> '+(CAT_EMOJI[c]||'')+' '+c+'</label>';
         }).join('');
+  }
+
+  function updateCatMsButton(){
+    var btn=document.getElementById('cat-ms-btn');
+    if(!btn) return;
+    if(!_listSelectedCats.length){ btn.textContent='すべてのジャンル ▾'; return; }
+    if(_listSelectedCats.length===1){ btn.textContent=_listSelectedCats[0]+' ▾'; return; }
+    btn.textContent=_listSelectedCats.length+'件のジャンルを選択中 ▾';
+  }
+
+  function onCatMsAllChange(){
+    var allChecked=document.getElementById('cat-ms-all').checked;
+    if(allChecked){
+      document.querySelectorAll('.cat-ms-check').forEach(function(el){el.checked=false;});
+      _listSelectedCats=[];
+    }
+    updateCatMsButton();
+    renderListGrid();
+  }
+
+  function onCatMsOptionChange(){
+    var checked=Array.from(document.querySelectorAll('.cat-ms-check:checked')).map(function(el){return el.value;});
+    _listSelectedCats=checked;
+    document.getElementById('cat-ms-all').checked = checked.length===0;
+    updateCatMsButton();
+    renderListGrid();
+  }
+
+  function toggleCatMultiSelect(e){
+    if(e) e.stopPropagation();
+    document.getElementById('cat-multiselect').classList.toggle('open');
+  }
+  document.addEventListener('click',function(e){
+    var ms=document.getElementById('cat-multiselect');
+    if(ms && ms.classList.contains('open') && !ms.contains(e.target)) ms.classList.remove('open');
+  });
+
+  function renderListGrid(){
+    var sortSel=document.getElementById('list-sort');
+    var sortVal=sortSel?sortSel.value:'new';
+    var list=_listBaseArticles.slice();
+    if(_listSelectedCats.length) list=list.filter(function(a){
+      var cats=articleCats(a);
+      return _listSelectedCats.some(function(c){return cats.indexOf(c)>=0;});
+    });
+    list.sort(function(a,b){
+      if(sortVal==='title') return (a.title||'').localeCompare(b.title||'','ja');
+      var ta,tb;
+      try{ ta=(a.createdAt&&a.createdAt.toDate)?a.createdAt.toDate():new Date(a.createdAt||0); }catch(e){ ta=new Date(0); }
+      try{ tb=(b.createdAt&&b.createdAt.toDate)?b.createdAt.toDate():new Date(b.createdAt||0); }catch(e){ tb=new Date(0); }
+      return sortVal==='old' ? (ta-tb) : (tb-ta);
+    });
+    document.getElementById('list-count').textContent=list.length+'件';
+    document.getElementById('articles-grid').innerHTML=!list.length
+      ?'<div class="empty-state" style="grid-column:1/-1"><div class="icon">📭</div><p>該当する記事がありません</p></div>'
+      :list.map(function(a){
+          return gridCardHtml(a);
+        }).join('');
+  }
+
+  function showListView(title,articles,opts){
+    opts=opts||{};
+    _listBaseArticles=articles.slice();
+    document.getElementById('list-title').textContent=title;
+    populateListFilterOptions();
+    var sortSel=document.getElementById('list-sort'); if(sortSel) sortSel.value='new';
+    document.getElementById('cat-multiselect').classList.remove('open');
+    document.getElementById('cat-ms-all').checked=true;
+    document.querySelectorAll('.cat-ms-check').forEach(function(el){el.checked=false;});
+    _listSelectedCats=[];
+    updateCatMsButton();
+    /* 単一カテゴリで既に絞り込んで開いた場合は、同じ内容の「ジャンルで絞り込み」欄が
+       重複してしまうため非表示にする。全記事一覧・タグ検索・検索結果などでは表示する */
+    document.getElementById('list-filter-wrap').classList.toggle('hidden', !!opts.hideCategoryFilter);
+    renderListGrid();
     showView('list'); document.title=title+' | アンカツ＋';
+  }
+
+  /* サイドバーの「もっと見る」から開く、全記事一覧（並び替え・絞り込み可） */
+  function openAllArticlesList(skipPush){
+    showListView('記事一覧',visibleArticles);
+    if(!skipPush) history.pushState({view:'list',all:true},'','#articles');
   }
 
   /* ---- 静的ページ ---- */
@@ -2176,6 +2341,7 @@
     else if(h.startsWith('#cat/'))   filterByCategory(decodeURIComponent(h.slice(5)));
     else if(h.startsWith('#tag/'))   filterByTag(decodeURIComponent(h.slice(5)));
     else if(h.startsWith('#search/'))doSearch(decodeURIComponent(h.slice(8)));
+    else if(h==='#articles')        openAllArticlesList(true);
     else if(h.startsWith('#special/')) openSpecialPage(decodeURIComponent(h.slice(9)));
     else if(h.startsWith('#page/')) showStaticPage(decodeURIComponent(h.slice(6)));
   });
@@ -2191,6 +2357,7 @@
     else if(h==='#archive')         filterByCategory('archive');
     else if(h.startsWith('#archive/')){var parts=decodeURIComponent(h.slice(9)).split('-');openArchiveMonth(parseInt(parts[0],10),parseInt(parts[1],10));}
     else if(h.startsWith('#author/')){var an=decodeURIComponent(h.slice(8));renderAuthorPage(an);showView('author');}
+    else if(h==='#articles')        openAllArticlesList(true);
     else if(h.startsWith('#special/')) openSpecialPage(decodeURIComponent(h.slice(9)));
     else if(h.startsWith('#page/')) showStaticPage(decodeURIComponent(h.slice(6)));
   }
@@ -2287,7 +2454,7 @@
     return (ids||[]).map(function(id){
       var a = allArticles.find(function(x){ return x.id===id; });
       if(!a) return '';
-      var img = a.thumbnail ? '<img src="'+a.thumbnail+'" alt="'+a.title+'">' : '<div style="width:100%;aspect-ratio:16/9;background:var(--accent-pale);display:flex;align-items:center;justify-content:center;font-size:1.6rem">'+(CAT_EMOJI[a.category]||'📰')+'</div>';
+      var img = a.thumbnail ? '<img src="'+a.thumbnail+'" alt="'+a.title+'">' : '<div style="width:100%;aspect-ratio:16/9;background:var(--accent-pale);display:flex;align-items:center;justify-content:center;font-size:1.6rem">'+(CAT_EMOJI[primaryCat(a)]||'📰')+'</div>';
       return '<a class="sp-related-card" href="#article/'+(a.slug||a.id)+'" onclick="event.preventDefault();openArticle(\''+a.id+'\')">'+img+'<div class="sp-related-card-title">'+a.title+'</div></a>';
     }).join('');
   }
@@ -2408,6 +2575,7 @@
     document.getElementById('search-input').addEventListener('keydown',function(e){if(e.key==='Enter')doSearch(e.target.value);});
     document.getElementById('search-input-mob').addEventListener('keydown',function(e){if(e.key==='Enter'){doSearch(e.target.value);document.getElementById('mobile-nav').classList.remove('open');}});
     document.getElementById('menu-toggle').addEventListener('click',function(){var o=document.getElementById('mobile-nav').classList.toggle('open');document.getElementById('menu-toggle').classList.toggle('open',o);});
+    var listSortEl=document.getElementById('list-sort'); if(listSortEl) listSortEl.addEventListener('change',renderListGrid);
   }
 
   /* ---- 初期化 ---- */
