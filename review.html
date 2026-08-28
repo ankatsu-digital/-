@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>投稿内容の確認 | アンカツ＋</title>
+  <meta name="description" content="アンカツ＋への投稿内容の確認・編集・承認ページです。" />
+
+  <!-- Firebase SDK（読み取り専用。書き込みは全てGAS経由で行う） -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey:            "AIzaSyC4HUWd4c5_fdgA-k34i1uthozfqYcRn9A",
+      authDomain:        "ankatsu-d4816.firebaseapp.com",
+      projectId:         "ankatsu-d4816",
+      storageBucket:     "ankatsu-d4816.firebasestorage.app",
+      messagingSenderId: "1005813876395",
+      appId:             "1:1005813876395:web:29153748d2a99c6584d9ee",
+      measurementId:     "G-TJWJXQZSBL"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+
+    window._getSubmissionForReview = async function (id) {
+      var snap = await getDoc(doc(db, 'submissions', id));
+      return snap.exists() ? Object.assign({ id: snap.id }, snap.data()) : null;
+    };
+
+    document.dispatchEvent(new Event('firebase-ready'));
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg:#faf9f6; --bg-card:#fff; --bg-sub:#f3f1ec;
+      --text-main:#1a1a18; --text-muted:#6b6b5e; --text-light:#999990;
+      --accent:#2d6a4f; --accent-light:#52b788; --accent-pale:#d8f3dc;
+      --danger:#e63946; --danger-pale:#fde8ea; --warn:#f4a261; --warn-pale:#fff3cd;
+      --border:#e0ddd4; --shadow:rgba(0,0,0,0.07);
+      --serif:'Noto Serif JP',serif; --sans:'Noto Sans JP',sans-serif;
+      --radius:8px;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--bg);color:var(--text-main);font-family:var(--sans);line-height:1.8;min-height:100vh;padding:2rem 1.25rem}
+    .wrap{max-width:640px;margin:0 auto}
+    .logo{font-family:var(--serif);font-size:1.3rem;font-weight:900;color:var(--accent);text-align:center;margin-bottom:1.75rem}
+    .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 4px 16px var(--shadow);padding:1.75rem}
+    h1{font-family:var(--serif);font-size:1.25rem;font-weight:900;margin-bottom:1rem}
+    .state{text-align:center;padding:2rem 1rem;color:var(--text-muted);font-size:.92rem}
+    .spinner{width:26px;height:26px;border:3px solid var(--accent-pale);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 1rem}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .box{border-radius:6px;padding:1rem 1.1rem;font-size:.88rem;margin-bottom:1.25rem;line-height:1.85}
+    .box.notice{background:var(--warn-pale);border:1px solid #ffc107;color:#856404}
+    .box.ok{background:var(--accent-pale);border:1px solid var(--accent-light);color:var(--accent)}
+    .box.err{background:var(--danger-pale);border:1px solid #f8b4ba;color:var(--danger)}
+    .field{margin-bottom:1.1rem}
+    .field label{display:block;font-size:.78rem;font-weight:700;color:var(--text-muted);margin-bottom:.4rem}
+    .field input[type=text], .field textarea {
+      width:100%;padding:.7rem .85rem;border:1.5px solid var(--border);border-radius:6px;
+      font-size:.9rem;font-family:inherit;color:var(--text-main);background:var(--bg-card);outline:none;
+      transition:border-color .2s;
+    }
+    .field textarea{min-height:220px;resize:vertical;font-family:monospace;font-size:.82rem;line-height:1.6}
+    .field input:focus, .field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-pale)}
+    .hint{font-size:.74rem;color:var(--text-light);margin-top:.35rem}
+    .actions{display:flex;flex-direction:column;gap:.75rem;margin-top:1.5rem}
+    .btn{display:block;width:100%;padding:.85rem 1.2rem;border-radius:6px;font-size:.92rem;font-weight:700;text-align:center;border:none;cursor:pointer;transition:background .2s,opacity .2s}
+    .btn-primary{background:var(--accent);color:#fff}
+    .btn-primary:hover{background:var(--accent-light)}
+    .btn-secondary{background:var(--bg-sub);color:var(--text-main);border:1.5px solid var(--border)}
+    .btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+    .divider{border-top:1px solid var(--border);margin:1.5rem 0}
+    .meta{font-size:.76rem;color:var(--text-light);margin-bottom:1.25rem}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="logo">アンカツ＋</div>
+    <div class="card" id="card">
+      <div class="state" id="state-loading">
+        <div class="spinner"></div>
+        読み込み中…
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ← submit.html / admin.html の SUBMIT_GAS_URL と同じURLに書き換えてください */
+    var GAS_URL = 'https://script.google.com/macros/s/AKfycbyK9Q9uV7HZieT8CdjBc08Y6x7kx_d_e1DGPSrLk3ISAiZB0Mqm7g1OVGC1fZgEEi6kXQ/exec';
+
+    var params = new URLSearchParams(location.search);
+    var subId  = params.get('id');
+    var token  = params.get('token');
+    var current = null; // 読み込んだ投稿データ
+
+    function escHtml(s) {
+      return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function stripTags(s) {
+      return String(s || '').replace(/<[^>]*>/g, '');
+    }
+
+    function renderCard(html) {
+      document.getElementById('card').innerHTML = html;
+    }
+
+    function renderError(msg) {
+      renderCard('<h1>ご案内</h1><div class="box err">' + escHtml(msg) + '</div>');
+    }
+
+    function renderMessage(title, msg, isOk) {
+      renderCard('<h1>' + escHtml(title) + '</h1><div class="box ' + (isOk ? 'ok' : 'notice') + '">' + escHtml(msg) + '</div>');
+    }
+
+    function callGas(payload) {
+      return fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      }).then(function (r) { return r.json(); });
+    }
+
+    function renderForm(s) {
+      current = s;
+      var canAct = s.aiCheckStatus === 'clean' && !s.autoPublishCancelled && !s.tokenUsed;
+
+      if (!canAct) {
+        var msg = s.tokenUsed
+          ? 'この投稿はすでに処理済みです。'
+          : 'この投稿は現在、編集部による確認待ちの状態です。しばらくお待ちください。';
+        renderMessage('確認できません', msg, false);
+        return;
+      }
+
+      var issueBox = s.aiNotes
+        ? '<div class="box notice"><b>🤖 AIによる指摘事項</b><br>' + escHtml(s.aiNotes) + '</div>'
+        : '<div class="box ok">🤖 AIチェックの結果、特に問題は見つかりませんでした。</div>';
+
+      var acceptBtn = s.aiNotes
+        ? '<button class="btn btn-primary" id="btn-accept" onclick="doAccept()">✅ この修正案の内容で承認する</button>'
+        : '';
+
+      renderCard(
+        '<h1>投稿内容のご確認</h1>' +
+        '<div class="meta">タイトル：' + escHtml(s.title) + '</div>' +
+        issueBox +
+        '<div class="field">' +
+          '<label>タイトル</label>' +
+          '<input type="text" id="f-title" value="' + escHtml(s.title) + '">' +
+        '</div>' +
+        '<div class="field">' +
+          '<label>本文（HTML可）</label>' +
+          '<textarea id="f-body">' + escHtml(s.aiCorrectedBody || s.body) + '</textarea>' +
+          '<div class="hint">AIの修正案（誤字脱字などを直したもの）が反映された状態です。必要に応じてさらに書き換えてから送信してください。</div>' +
+        '</div>' +
+        '<div class="actions">' +
+          acceptBtn +
+          '<button class="btn btn-secondary" id="btn-edit" onclick="doEditSubmit()">📝 この内容で送信する（再チェックされます）</button>' +
+        '</div>'
+      );
+    }
+
+    function setButtonsDisabled(disabled) {
+      ['btn-accept', 'btn-edit'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.disabled = disabled;
+      });
+    }
+
+    window.doAccept = function () {
+      setButtonsDisabled(true);
+      callGas({ type: 'submission_ai_accept', id: subId, token: token })
+        .then(function (res) {
+          if (res.ok) {
+            renderMessage(res.pending ? '承認しました' : '公開しました', res.message, true);
+          } else {
+            renderMessage('エラー', res.error || '処理に失敗しました。', false);
+          }
+        })
+        .catch(function (e) {
+          renderMessage('エラー', '通信に失敗しました：' + e.message, false);
+          setButtonsDisabled(false);
+        });
+    };
+
+    window.doEditSubmit = function () {
+      var newTitle = document.getElementById('f-title').value;
+      var newBody  = document.getElementById('f-body').value;
+      if (!newTitle.trim()) { alert('タイトルを入力してください'); return; }
+      if (!newBody.trim())  { alert('本文を入力してください'); return; }
+      setButtonsDisabled(true);
+      callGas({ type: 'submission_ai_edit_submit', id: subId, token: token, title: newTitle, body: newBody })
+        .then(function (res) {
+          if (res.ok) {
+            renderMessage('送信しました', res.message, true);
+          } else {
+            renderMessage('エラー', res.error || '処理に失敗しました。', false);
+          }
+        })
+        .catch(function (e) {
+          renderMessage('エラー', '通信に失敗しました：' + e.message, false);
+          setButtonsDisabled(false);
+        });
+    };
+
+    function init() {
+      if (!subId || !token) {
+        renderError('リンクが正しくありません。メールに記載のリンクをもう一度お確かめください。');
+        return;
+      }
+      window._getSubmissionForReview(subId).then(function (s) {
+        if (!s) {
+          renderError('投稿が見つかりませんでした。すでに処理済みか、リンクが無効になっている可能性があります。');
+          return;
+        }
+        if (s.editToken !== token) {
+          renderError('リンクが正しくありません。');
+          return;
+        }
+        renderForm(s);
+      }).catch(function (e) {
+        renderError('読み込みに失敗しました：' + e.message);
+      });
+    }
+
+    document.addEventListener('firebase-ready', init);
+  </script>
+</body>
+</html>
