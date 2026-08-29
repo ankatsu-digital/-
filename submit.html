@@ -261,9 +261,10 @@
             </div>
             <div id="ai-draft-result" style="display:none;margin-top:1rem">
               <div class="flabel" style="margin-bottom:.4rem">タイトル案（タップで採用）</div>
-              <div id="ai-draft-titles" style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:.9rem"></div>
+              <div id="ai-draft-title" style="margin-bottom:.9rem"></div>
               <div class="flabel" style="margin-bottom:.4rem">タグ案（タップで追加）</div>
               <div id="ai-draft-tags" style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.9rem"></div>
+              <div id="ai-draft-event-note" class="fhint" style="display:none;margin-bottom:.6rem"></div>
               <button type="button" class="sbtn" id="ai-draft-apply-body" onclick="applyAiDraftBody()">📝 この本文案を下の本文欄に入れる</button>
             </div>
             <span class="fhint">タイトル・タグ・本文の下書きをAIが作ります。そのまま使っても、自分で書き直してもOKです。内容は投稿前に必ずご確認ください。</span>
@@ -627,25 +628,35 @@
   }
 
   function renderAiDraftResult(res) {
-    var titlesWrap = document.getElementById('ai-draft-titles');
-    titlesWrap.innerHTML = (res.titles || []).map(function (t, i) {
-      var esc = t.replace(/'/g, "\\'");
-      return '<div class="draft-title-opt" onclick="pickAiDraftTitle(' + i + ')">'
-        + '<span>' + t.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>'
+    var titleWrap = document.getElementById('ai-draft-title');
+    if (res.title) {
+      titleWrap.innerHTML = '<div class="draft-title-opt" onclick="pickAiDraftTitle()">'
+        + '<span>' + res.title.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>'
         + '<span class="pick">この案を使う →</span></div>';
-    }).join('') || '<div class="fhint">タイトル案は作成されませんでした。</div>';
+    } else {
+      titleWrap.innerHTML = '<div class="fhint">タイトル案は作成されませんでした。</div>';
+    }
 
     var tagsWrap = document.getElementById('ai-draft-tags');
     tagsWrap.innerHTML = (res.tags || []).map(function (t, i) {
       return '<button type="button" class="draft-tag-chip" id="draft-tag-' + i + '" onclick="addAiDraftTag(' + i + ')">+ ' + t.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</button>';
     }).join('') || '<div class="fhint">タグ案は作成されませんでした。</div>';
 
+    var eventNoteEl = document.getElementById('ai-draft-event-note');
+    if (res.eventDate || res.eventTime) {
+      eventNoteEl.style.display = 'block';
+      eventNoteEl.textContent = '📅 メモから日時を検出：' + (res.eventDate || '（日付不明）') + (res.eventTime ? '　' + res.eventTime : '')
+        + '　※「この本文案を入れる」を押すと、下のイベント日時欄にも自動で入ります（カテゴリを「イベント」にすると欄が表示されます）';
+    } else {
+      eventNoteEl.style.display = 'none';
+    }
+
     document.getElementById('ai-draft-result').style.display = 'block';
   }
 
-  function pickAiDraftTitle(idx) {
-    if (!_aiDraftResult || !_aiDraftResult.titles || !_aiDraftResult.titles[idx]) return;
-    document.getElementById('s-title').value = _aiDraftResult.titles[idx];
+  function pickAiDraftTitle() {
+    if (!_aiDraftResult || !_aiDraftResult.title) return;
+    document.getElementById('s-title').value = _aiDraftResult.title;
   }
 
   function addAiDraftTag(idx) {
@@ -663,6 +674,17 @@
     if (!_aiDraftResult || !_aiDraftResult.bodyHtml) { alert('本文案がありません'); return; }
     if (getBody() && !confirm('現在の本文欄の内容を、AIが作成した本文で上書きします。よろしいですか？')) return;
     setBody(_aiDraftResult.bodyHtml);
+
+    // メモから日時が推定できていれば、イベント日時欄にも自動で入れる
+    // （カテゴリが「イベント」でない場合は欄自体が非表示のため、値だけ先に入れておく）
+    if (_aiDraftResult.eventDate) {
+      var dEl = document.getElementById('s-eventdate');
+      if (dEl) dEl.value = _aiDraftResult.eventDate;
+    }
+    if (_aiDraftResult.eventTime) {
+      var tEl = document.getElementById('s-eventtime');
+      if (tEl) tEl.value = _aiDraftResult.eventTime;
+    }
   }
 
   // ============================================================
