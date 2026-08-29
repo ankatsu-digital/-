@@ -104,12 +104,6 @@
     .sbtn{display:inline-flex;align-items:center;gap:.4rem;padding:.55rem 1rem;background:var(--green);color:#fff;border:none;border-radius:20px;font-size:.83rem;font-weight:700;cursor:pointer;transition:background .2s}
     .sbtn:hover{background:var(--green2)}
     .sbtn:disabled{opacity:.55;cursor:not-allowed}
-    .draft-title-opt{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.6rem .8rem;background:var(--card);border:1.5px solid var(--border);border-radius:6px;font-size:.85rem;cursor:pointer;transition:border-color .2s}
-    .draft-title-opt:hover{border-color:var(--green)}
-    .draft-title-opt .pick{font-size:.72rem;color:var(--green);font-weight:700;flex-shrink:0}
-    .draft-tag-chip{font-size:.78rem;padding:.3rem .75rem;background:var(--card);border:1.5px solid var(--border);border-radius:20px;color:var(--muted);cursor:pointer;transition:background .2s,border-color .2s}
-    .draft-tag-chip:hover{background:var(--gpale);border-color:var(--green);color:var(--green)}
-    .draft-tag-chip.added{background:var(--gpale);border-color:var(--green);color:var(--green)}
     .ftextarea{min-height:140px;resize:vertical;line-height:1.7}
     .fgrid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
 
@@ -259,15 +253,8 @@
               <button type="button" class="sbtn" id="ai-draft-btn" onclick="generateAiDraft()">✨ AIに記事案を作ってもらう</button>
               <span id="ai-draft-status" style="font-size:.8rem;color:var(--muted)"></span>
             </div>
-            <div id="ai-draft-result" style="display:none;margin-top:1rem">
-              <div class="flabel" style="margin-bottom:.4rem">タイトル案（タップで採用）</div>
-              <div id="ai-draft-title" style="margin-bottom:.9rem"></div>
-              <div class="flabel" style="margin-bottom:.4rem">タグ案（タップで追加）</div>
-              <div id="ai-draft-tags" style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.9rem"></div>
-              <div id="ai-draft-event-note" class="fhint" style="display:none;margin-bottom:.6rem"></div>
-              <button type="button" class="sbtn" id="ai-draft-apply-body" onclick="applyAiDraftBody()">📝 この本文案を下の本文欄に入れる</button>
-            </div>
-            <span class="fhint">タイトル・タグ・本文の下書きをAIが作ります。そのまま使っても、自分で書き直してもOKです。内容は投稿前に必ずご確認ください。</span>
+            <div id="ai-draft-result" style="display:none;margin-top:1rem"></div>
+            <span class="fhint">タイトル・カテゴリ・タグ・本文（該当すればイベント日時も）を、下の各欄に自動で入力します。内容は投稿前に必ずご確認・修正してください。</span>
           </div>
 
           <div class="frow">
@@ -591,10 +578,8 @@
   }
 
   // ============================================================
-  // AIによる記事案作成（メモ → タイトル案・タグ案・本文HTML）
+  // AIによる記事案作成（メモ → タイトル・カテゴリ・タグ・本文HTML を自動入力）
   // ============================================================
-  var _aiDraftResult = null;
-
   function generateAiDraft() {
     var memo = document.getElementById('ai-draft-memo').value.trim();
     if (!memo) { alert('メモを入力してください'); return; }
@@ -606,20 +591,14 @@
     statusEl.textContent = '🤖 AIが記事案を作成中…（数秒〜十数秒かかります）';
     document.getElementById('ai-draft-result').style.display = 'none';
 
-    callGasJson({
-      type: 'ai_draft_article',
-      memo: memo,
-      category: document.getElementById('s-cat').value
-    }).then(function (res) {
+    callGasJson({ type: 'ai_draft_article', memo: memo }).then(function (res) {
       btn.disabled = false;
+      statusEl.textContent = '';
       if (!res.ok) {
-        statusEl.textContent = '';
         alert('記事案の作成に失敗しました：' + (res.error || '不明なエラー'));
         return;
       }
-      statusEl.textContent = '';
-      _aiDraftResult = res;
-      renderAiDraftResult(res);
+      applyAiDraft(res);
     }).catch(function (e) {
       btn.disabled = false;
       statusEl.textContent = '';
@@ -627,64 +606,45 @@
     });
   }
 
-  function renderAiDraftResult(res) {
-    var titleWrap = document.getElementById('ai-draft-title');
+  // 生成結果を、タイトル・カテゴリ・タグ・本文（該当すればイベント日時も）に自動反映する
+  function applyAiDraft(res) {
+    var applied = [];
+
     if (res.title) {
-      titleWrap.innerHTML = '<div class="draft-title-opt" onclick="pickAiDraftTitle()">'
-        + '<span>' + res.title.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>'
-        + '<span class="pick">この案を使う →</span></div>';
-    } else {
-      titleWrap.innerHTML = '<div class="fhint">タイトル案は作成されませんでした。</div>';
+      document.getElementById('s-title').value = res.title;
+      applied.push('タイトル');
     }
 
-    var tagsWrap = document.getElementById('ai-draft-tags');
-    tagsWrap.innerHTML = (res.tags || []).map(function (t, i) {
-      return '<button type="button" class="draft-tag-chip" id="draft-tag-' + i + '" onclick="addAiDraftTag(' + i + ')">+ ' + t.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</button>';
-    }).join('') || '<div class="fhint">タグ案は作成されませんでした。</div>';
-
-    var eventNoteEl = document.getElementById('ai-draft-event-note');
-    if (res.eventDate || res.eventTime) {
-      eventNoteEl.style.display = 'block';
-      eventNoteEl.textContent = '📅 メモから日時を検出：' + (res.eventDate || '（日付不明）') + (res.eventTime ? '　' + res.eventTime : '')
-        + '　※「この本文案を入れる」を押すと、下のイベント日時欄にも自動で入ります（カテゴリを「イベント」にすると欄が表示されます）';
-    } else {
-      eventNoteEl.style.display = 'none';
+    if (res.category) {
+      var catEl = document.getElementById('s-cat');
+      catEl.value = res.category;
+      catEl.dispatchEvent(new Event('change')); // イベント日時欄の表示切替などを連動させる
+      applied.push('カテゴリ「' + res.category + '」');
     }
 
-    document.getElementById('ai-draft-result').style.display = 'block';
-  }
+    if (res.tags && res.tags.length) {
+      document.getElementById('s-tags').value = res.tags.join(', ');
+      applied.push('タグ' + res.tags.length + '件');
+    }
 
-  function pickAiDraftTitle() {
-    if (!_aiDraftResult || !_aiDraftResult.title) return;
-    document.getElementById('s-title').value = _aiDraftResult.title;
-  }
+    if (res.bodyHtml) {
+      setBody(res.bodyHtml);
+      applied.push('本文');
+    }
 
-  function addAiDraftTag(idx) {
-    if (!_aiDraftResult || !_aiDraftResult.tags || !_aiDraftResult.tags[idx]) return;
-    var tagInput = document.getElementById('s-tags');
-    var current = tagInput.value.split(',').map(function (t) { return t.trim(); }).filter(Boolean);
-    var newTag = _aiDraftResult.tags[idx];
-    if (current.indexOf(newTag) < 0) current.push(newTag);
-    tagInput.value = current.join(', ');
-    var chip = document.getElementById('draft-tag-' + idx);
-    if (chip) chip.classList.add('added');
-  }
-
-  function applyAiDraftBody() {
-    if (!_aiDraftResult || !_aiDraftResult.bodyHtml) { alert('本文案がありません'); return; }
-    if (getBody() && !confirm('現在の本文欄の内容を、AIが作成した本文で上書きします。よろしいですか？')) return;
-    setBody(_aiDraftResult.bodyHtml);
-
-    // メモから日時が推定できていれば、イベント日時欄にも自動で入れる
-    // （カテゴリが「イベント」でない場合は欄自体が非表示のため、値だけ先に入れておく）
-    if (_aiDraftResult.eventDate) {
+    if (res.eventDate) {
       var dEl = document.getElementById('s-eventdate');
-      if (dEl) dEl.value = _aiDraftResult.eventDate;
+      if (dEl) dEl.value = res.eventDate;
     }
-    if (_aiDraftResult.eventTime) {
+    if (res.eventTime) {
       var tEl = document.getElementById('s-eventtime');
-      if (tEl) tEl.value = _aiDraftResult.eventTime;
+      if (tEl) tEl.value = res.eventTime;
     }
+    if (res.eventDate || res.eventTime) applied.push('イベント日時');
+
+    var resultEl = document.getElementById('ai-draft-result');
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = '<div class="fhint" style="color:var(--green);font-weight:700">✅ ' + applied.join('・') + ' を自動で入力しました。内容を確認し、必要に応じて書き直してください。</div>';
   }
 
   // ============================================================
