@@ -143,7 +143,7 @@
         ? '<div class="box notice"><b>🤖 AIによる指摘事項</b><br>' + escHtml(s.aiNotes) + '</div>'
         : '<div class="box ok">🤖 AIチェックの結果、特に問題は見つかりませんでした。</div>';
 
-      var acceptBtn = s.aiNotes
+      var acceptBtn = s.aiHasIssues
         ? '<button class="btn btn-primary" id="btn-accept" onclick="doAccept()">✅ この修正案の内容で承認する</button>'
         : '';
 
