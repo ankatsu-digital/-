@@ -3,19 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>投稿者アカウント登録 | アンカツ＋</title>
-  <meta name="description" content="アンカツ＋の投稿者アカウント登録・マイページです。" />
+  <title>投稿内容の確認 | アンカツ＋</title>
+  <meta name="description" content="アンカツ＋への投稿内容の確認・編集・承認ページです。" />
 
-  <!-- Firebase SDK -->
+  <!-- Firebase SDK（読み取り専用。書き込みは全てGAS経由で行う） -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import {
-      getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-      signOut, onAuthStateChanged, sendPasswordResetEmail
-    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import {
-      getFirestore, doc, setDoc, serverTimestamp
-    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey:            "AIzaSyC4HUWd4c5_fdgA-k34i1uthozfqYcRn9A",
@@ -27,311 +21,216 @@
       measurementId:     "G-TJWJXQZSBL"
     };
 
-    const app  = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db   = getFirestore(app);
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
 
-    window._auth = auth;
-    window._db   = db;
-    window._onAuth  = (cb) => onAuthStateChanged(auth, cb);
-    window._signUp  = (email, pw) => createUserWithEmailAndPassword(auth, email, pw);
-    window._signIn  = (email, pw) => signInWithEmailAndPassword(auth, email, pw);
-    window._signOut = () => signOut(auth);
-    window._resetPw = (email) => sendPasswordResetEmail(auth, email);
-    window._createAccount = (uid, data) => setDoc(doc(db, 'accounts', uid), data);
-    window._ts = () => serverTimestamp();
+    window._getSubmissionForReview = async function (id) {
+      var snap = await getDoc(doc(db, 'submissions', id));
+      return snap.exists() ? Object.assign({ id: snap.id }, snap.data()) : null;
+    };
 
-    document.dispatchEvent(new Event('fb-ready'));
+    document.dispatchEvent(new Event('firebase-ready'));
   </script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
 
   <style>
     :root {
-      --bg:#faf9f6; --card:#fff;
-      --text:#1a1a18; --muted:#6b6b5e; --light:#999990;
-      --green:#2d6a4f; --green2:#52b788; --gpale:#d8f3dc;
-      --red:#e63946; --rpale:#fde8ea;
-      --border:#e0ddd4; --shadow:rgba(0,0,0,.07);
+      --bg:#faf9f6; --bg-card:#fff; --bg-sub:#f3f1ec;
+      --text-main:#1a1a18; --text-muted:#6b6b5e; --text-light:#999990;
+      --accent:#2d6a4f; --accent-light:#52b788; --accent-pale:#d8f3dc;
+      --danger:#e63946; --danger-pale:#fde8ea; --warn:#f4a261; --warn-pale:#fff3cd;
+      --border:#e0ddd4; --shadow:rgba(0,0,0,0.07);
       --serif:'Noto Serif JP',serif; --sans:'Noto Sans JP',sans-serif;
-      --r:8px; --t:.25s ease;
+      --radius:8px;
     }
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    html{font-size:16px}
-    body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.7;min-height:100vh}
-    a{color:var(--green)}
-    button{cursor:pointer;font-family:inherit;border:none;background:none}
-    input,textarea,select{font-family:inherit}
-
-    header{background:var(--card);border-bottom:1px solid var(--border);padding:.9rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;box-shadow:0 2px 8px var(--shadow)}
-    .hlogo{font-family:var(--serif);font-size:1.35rem;font-weight:900;color:var(--green);text-decoration:none}
-    .hback{font-size:.82rem;color:var(--muted)}
-    .hback:hover{color:var(--green)}
-
-    main{max-width:640px;margin:0 auto;padding:2.5rem 1.5rem 4rem}
-
-    .hero{text-align:center;margin-bottom:2rem;padding:1.75rem 1rem;background:linear-gradient(135deg,var(--gpale),var(--bg));border-radius:12px;border:1px solid var(--border)}
-    .hero h1{font-family:var(--serif);font-size:clamp(1.4rem,4vw,1.8rem);font-weight:900;margin-bottom:.5rem}
-    .hero p{font-size:.88rem;color:var(--muted);max-width:480px;margin:0 auto;line-height:1.8}
-
-    .fcard{background:var(--card);border-radius:var(--r);border:1px solid var(--border);box-shadow:0 4px 16px var(--shadow);overflow:hidden;margin-bottom:1.5rem}
-    .fhead{background:var(--green);color:#fff;padding:1rem 1.5rem}
-    .fhead h2{font-family:var(--serif);font-size:1.05rem;font-weight:700}
-    .fhead p{font-size:.76rem;opacity:.85;margin-top:.2rem}
-    .fbody{padding:1.5rem}
-
-    .frow{display:flex;flex-direction:column;gap:.35rem;margin-bottom:1.1rem}
-    .flabel{font-size:.82rem;font-weight:600;color:var(--muted)}
-    .req{color:var(--red);margin-left:2px}
-    .finput,.ftextarea{padding:.65rem .85rem;border:1.5px solid var(--border);border-radius:6px;font-size:.9rem;color:var(--text);background:var(--card);outline:none;transition:border-color var(--t),box-shadow var(--t);width:100%}
-    .finput:focus,.ftextarea:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--gpale)}
-    .ftextarea{min-height:100px;resize:vertical;line-height:1.7}
-    .fhint{font-size:.74rem;color:var(--light);line-height:1.5}
-    .ferr{font-size:.78rem;color:var(--red);display:none;margin-top:.25rem}
-    .ferr.on{display:block}
-
-    .submit-btn{width:100%;padding:.85rem;background:var(--green);color:#fff;border-radius:var(--r);font-size:.98rem;font-weight:700;transition:background var(--t);display:flex;align-items:center;justify-content:center;gap:.5rem}
-    .submit-btn:hover{background:var(--green2)}
-    .submit-btn:disabled{opacity:.6;cursor:not-allowed}
-    .link-btn{font-size:.82rem;color:var(--green);text-decoration:underline;display:block;text-align:center;margin-top:.9rem}
-
-    .badge{display:inline-block;padding:.25rem .7rem;border-radius:12px;font-size:.78rem;font-weight:700}
-    .badge-pending{background:#fff3cd;color:#856404}
-    .badge-needs{background:#ffe3c2;color:#8a4b00}
-    .badge-approved{background:var(--gpale);color:var(--green)}
-    .badge-rejected{background:#f3f3f3;color:var(--muted)}
-
-    .qa-item{border:1px solid var(--border);border-radius:8px;padding:1rem 1.1rem;margin-bottom:1rem;background:var(--bg)}
-    .qa-q{font-weight:700;font-size:.88rem;margin-bottom:.5rem}
-
-    .spin{width:16px;height:16px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;display:inline-block;vertical-align:middle}
-    @keyframes sp{to{transform:rotate(360deg)}}
-
-    .tabs{display:flex;gap:.5rem;margin-bottom:1.5rem}
-    .tab-btn{flex:1;padding:.6rem;border-radius:20px;font-size:.85rem;font-weight:700;color:var(--muted);background:var(--bg);border:1.5px solid var(--border)}
-    .tab-btn.on{background:var(--green);color:#fff;border-color:var(--green)}
-
-    footer{text-align:center;padding:2rem 1.5rem;font-size:.78rem;color:var(--light);border-top:1px solid var(--border);margin-top:2rem}
+    body{background:var(--bg);color:var(--text-main);font-family:var(--sans);line-height:1.8;min-height:100vh;padding:2rem 1.25rem}
+    .wrap{max-width:640px;margin:0 auto}
+    .logo{font-family:var(--serif);font-size:1.3rem;font-weight:900;color:var(--accent);text-align:center;margin-bottom:1.75rem}
+    .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 4px 16px var(--shadow);padding:1.75rem}
+    h1{font-family:var(--serif);font-size:1.25rem;font-weight:900;margin-bottom:1rem}
+    .state{text-align:center;padding:2rem 1rem;color:var(--text-muted);font-size:.92rem}
+    .spinner{width:26px;height:26px;border:3px solid var(--accent-pale);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 1rem}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .box{border-radius:6px;padding:1rem 1.1rem;font-size:.88rem;margin-bottom:1.25rem;line-height:1.85}
+    .box.notice{background:var(--warn-pale);border:1px solid #ffc107;color:#856404}
+    .box.ok{background:var(--accent-pale);border:1px solid var(--accent-light);color:var(--accent)}
+    .box.err{background:var(--danger-pale);border:1px solid #f8b4ba;color:var(--danger)}
+    .field{margin-bottom:1.1rem}
+    .field label{display:block;font-size:.78rem;font-weight:700;color:var(--text-muted);margin-bottom:.4rem}
+    .field input[type=text], .field textarea {
+      width:100%;padding:.7rem .85rem;border:1.5px solid var(--border);border-radius:6px;
+      font-size:.9rem;font-family:inherit;color:var(--text-main);background:var(--bg-card);outline:none;
+      transition:border-color .2s;
+    }
+    .field textarea{min-height:220px;resize:vertical;font-family:monospace;font-size:.82rem;line-height:1.6}
+    .field input:focus, .field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-pale)}
+    .hint{font-size:.74rem;color:var(--text-light);margin-top:.35rem}
+    .actions{display:flex;flex-direction:column;gap:.75rem;margin-top:1.5rem}
+    .btn{display:block;width:100%;padding:.85rem 1.2rem;border-radius:6px;font-size:.92rem;font-weight:700;text-align:center;border:none;cursor:pointer;transition:background .2s,opacity .2s}
+    .btn-primary{background:var(--accent);color:#fff}
+    .btn-primary:hover{background:var(--accent-light)}
+    .btn-secondary{background:var(--bg-sub);color:var(--text-main);border:1.5px solid var(--border)}
+    .btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+    .divider{border-top:1px solid var(--border);margin:1.5rem 0}
+    .meta{font-size:.76rem;color:var(--text-light);margin-bottom:1.25rem}
   </style>
 </head>
 <body>
-
-  <header>
-    <a href="index.html" class="hlogo">アンカツ＋</a>
-    <div style="display:flex;align-items:center;gap:1rem">
-      <a href="index.html" class="hback">← サイトに戻る</a>
-    </div>
-  </header>
-
-  <main>
-
-    <div class="hero">
-      <h1>🧑‍💼 投稿者アカウント</h1>
-      <p>継続的に記事を投稿したい方向けのアカウントです。承認されると、投稿状況の確認やご自身の執筆者プロフィールの編集ができるようになります。</p>
-    </div>
-
-    <!-- 未ログイン時：申請フォーム / ログイン 切り替え -->
-    <div id="pg-guest">
-      <div class="tabs">
-        <button class="tab-btn on" id="tab-apply" onclick="switchGuestTab('apply')">📝 新規申請</button>
-        <button class="tab-btn" id="tab-login" onclick="switchGuestTab('login')">🔑 ログイン</button>
-      </div>
-
-      <!-- 新規申請フォーム -->
-      <div class="fcard" id="pg-apply">
-        <div class="fhead"><h2>投稿者アカウントを申請する</h2><p>審査後、承認されるとアカウントが有効になります</p></div>
-        <div class="fbody">
-          <div class="frow">
-            <label class="flabel">お名前 <span class="req">*</span></label>
-            <input id="a-name" type="text" class="finput" placeholder="山田 太郎" />
-            <span class="ferr" id="err-a-name">お名前を入力してください</span>
-          </div>
-          <div class="frow">
-            <label class="flabel">メールアドレス <span class="req">*</span></label>
-            <input id="a-email" type="email" class="finput" placeholder="example@email.com" />
-            <span class="ferr" id="err-a-email">メールアドレスを入力してください</span>
-          </div>
-          <div class="frow">
-            <label class="flabel">パスワード <span class="req">*</span></label>
-            <input id="a-pw" type="password" class="finput" placeholder="8文字以上" />
-            <span class="fhint">ログインに使うパスワードです。忘れないよう保管してください</span>
-            <span class="ferr" id="err-a-pw">8文字以上のパスワードを入力してください</span>
-          </div>
-          <div class="frow">
-            <label class="flabel">所属・活動内容</label>
-            <input id="a-org" type="text" class="finput" placeholder="〇〇商店街振興会、フリーランスライター など" />
-          </div>
-          <div class="frow">
-            <label class="flabel">継続的な投稿を希望する理由 <span class="req">*</span></label>
-            <textarea id="a-reason" class="ftextarea" placeholder="どんな内容を、どのくらいの頻度で投稿したいかなど教えてください"></textarea>
-            <span class="ferr" id="err-a-reason">理由を入力してください</span>
-          </div>
-          <button class="submit-btn" id="a-submit" onclick="doApply()">申請する →</button>
-        </div>
-      </div>
-
-      <!-- ログイン -->
-      <div class="fcard" id="pg-login-card" style="display:none">
-        <div class="fhead"><h2>ログイン</h2><p>すでに申請済みの方はこちら</p></div>
-        <div class="fbody">
-          <div class="frow">
-            <label class="flabel">メールアドレス</label>
-            <input id="li-email" type="email" class="finput" placeholder="example@email.com" />
-          </div>
-          <div class="frow">
-            <label class="flabel">パスワード</label>
-            <input id="li-pw" type="password" class="finput" placeholder="••••••••" />
-          </div>
-          <div id="li-error" style="display:none;background:var(--rpale);color:var(--red);border-radius:6px;padding:.6rem .9rem;font-size:.82rem;margin-bottom:1rem">メールアドレスまたはパスワードが正しくありません</div>
-          <button class="submit-btn" id="li-submit" onclick="doLogin()">ログイン →</button>
-          <button class="link-btn" onclick="doForgotPw()">パスワードをお忘れの方はこちら</button>
-        </div>
+  <div class="wrap">
+    <div class="logo">アンカツ＋</div>
+    <div class="card" id="card">
+      <div class="state" id="state-loading">
+        <div class="spinner"></div>
+        読み込み中…
       </div>
     </div>
-
-    <!-- ログイン済みの場合：自動遷移はせず、手動リンクのみ表示 -->
-    <div class="fcard" id="pg-loggedin" style="display:none">
-      <div class="fhead"><h2 id="li-done-title">ログイン済みです</h2><p>続きは管理画面（マイページ）から行えます</p></div>
-      <div class="fbody">
-        <p style="font-size:.88rem;color:var(--muted);line-height:1.85;margin-bottom:1.25rem" id="li-done-desc">
-          審査状況の確認、記事の投稿、プロフィールの編集は管理画面から行えます。
-        </p>
-        <a href="admin.html" class="submit-btn" style="display:flex;text-decoration:none;margin-bottom:.75rem">🧑‍💼 管理画面（マイページ）を開く</a>
-        <button class="link-btn" onclick="doLogout()">ログアウトする</button>
-      </div>
-    </div>
-
-  </main>
-
-  <footer>
-    © 2025 アンカツ城下町洲本「生涯活躍のまち」の特区にしたい会
-  </footer>
+  </div>
 
   <script>
-  // ============================================================
-  // GAS自動返信メール
-  // ============================================================
-  var SUBMIT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyK9Q9uV7HZieT8CdjBc08Y6x7kx_d_e1DGPSrLk3ISAiZB0Mqm7g1OVGC1fZgEEi6kXQ/exec'; /* ← submit.htmlと同じGASのURL */
-  var ADMIN_NOTIFY_EMAIL = 'oruto1157oruto2@gmail.com,kvsrbe1236@yahoo.ne.jp,ankatsu.sumoto@gmail.com'; /* ← submit.htmlと同じ編集部メールアドレス */
-  var ADMIN_URL = location.origin + location.pathname.replace('register.html', 'admin.html');
-  var REGISTER_URL = location.origin + location.pathname;
+    /* ← submit.html / admin.html の SUBMIT_GAS_URL と同じURLに書き換えてください */
+    var GAS_URL = 'https://script.google.com/macros/s/AKfycbyK9Q9uV7HZieT8CdjBc08Y6x7kx_d_e1DGPSrLk3ISAiZB0Mqm7g1OVGC1fZgEEi6kXQ/exec';
 
-  function sendGasMail(payload){
-    if(!SUBMIT_GAS_URL || SUBMIT_GAS_URL.indexOf('XXXX')>=0) return;
-    fetch(SUBMIT_GAS_URL, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify(payload)
-    }).catch(function(e){ console.error('mail send error:', e); });
-  }
+    var params = new URLSearchParams(location.search);
+    var subId  = params.get('id');
+    var token  = params.get('token');
+    var current = null; // 読み込んだ投稿データ
 
-  // ============================================================
-  // ゲスト画面（申請 / ログイン）タブ切り替え
-  // ============================================================
-  function switchGuestTab(tab){
-    document.getElementById('tab-apply').classList.toggle('on', tab==='apply');
-    document.getElementById('tab-login').classList.toggle('on', tab==='login');
-    document.getElementById('pg-apply').style.display = tab==='apply' ? 'block' : 'none';
-    document.getElementById('pg-login-card').style.display = tab==='login' ? 'block' : 'none';
-  }
-
-  // ============================================================
-  // 新規申請（= Firebase Authユーザー作成 + accountsドキュメント作成）
-  // ============================================================
-  function clearApplyErrors(){ document.querySelectorAll('#pg-apply .ferr').forEach(function(el){ el.classList.remove('on'); }); }
-
-  async function doApply(){
-    clearApplyErrors();
-    var name   = document.getElementById('a-name').value.trim();
-    var email  = document.getElementById('a-email').value.trim();
-    var pw     = document.getElementById('a-pw').value;
-    var org    = document.getElementById('a-org').value.trim();
-    var reason = document.getElementById('a-reason').value.trim();
-
-    var ok = true;
-    if(!name)   { document.getElementById('err-a-name').classList.add('on'); ok=false; }
-    if(!email)  { document.getElementById('err-a-email').classList.add('on'); ok=false; }
-    if(!pw || pw.length<8) { document.getElementById('err-a-pw').classList.add('on'); ok=false; }
-    if(!reason) { document.getElementById('err-a-reason').classList.add('on'); ok=false; }
-    if(!ok) return;
-
-    var btn = document.getElementById('a-submit');
-    btn.disabled = true; btn.innerHTML = '<span class="spin"></span> 送信中…';
-    try{
-      var cred = await window._signUp(email, pw);
-      var uid = cred.user.uid;
-      await window._createAccount(uid, {
-        name: name, email: email, org: org, reason: reason,
-        status: 'pending', questions: [], createdAt: window._ts(), updatedAt: window._ts()
-      });
-
-      var submittedAtStr = new Date().toLocaleString('ja-JP');
-      sendGasMail({ type:'account_received', to:email, name:name, submitted_at:submittedAtStr, register_url:REGISTER_URL });
-      sendGasMail({
-        type:'account_admin_notify', to:ADMIN_NOTIFY_EMAIL,
-        name:name, from_email:email, org:org, reason:reason,
-        submitted_at:submittedAtStr, admin_url:ADMIN_URL
-      });
-      // ログイン状態にはなるが自動遷移はしない。initAuth側で「ログイン済み」画面を出す。
-      _customLoggedInText = {
-        title: '📝 申請を受け付けました',
-        desc: '審査状況の確認や、承認後の記事投稿・プロフィール編集は管理画面から行えます。'
-      };
-    }catch(e){
-      console.error(e);
-      alert('申請に失敗しました: ' + (e.message||e));
-      btn.disabled=false; btn.textContent='申請する →';
+    function escHtml(s) {
+      return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
-  }
+    function stripTags(s) {
+      return String(s || '').replace(/<[^>]*>/g, '');
+    }
 
-  // ============================================================
-  // ログイン / ログアウト
-  // ============================================================
-  function doLogin(){
-    var email = document.getElementById('li-email').value.trim();
-    var pw    = document.getElementById('li-pw').value;
-    var err   = document.getElementById('li-error');
-    var btn   = document.getElementById('li-submit');
-    if(!email || !pw){ err.textContent='メールアドレスとパスワードを入力してください'; err.style.display='block'; return; }
-    err.style.display='none';
-    btn.disabled=true; btn.innerHTML='<span class="spin"></span> 認証中…';
-    window._signIn(email, pw)
-      .catch(function(){ err.style.display='block'; })
-      .finally(function(){ btn.disabled=false; btn.textContent='ログイン →'; });
-  }
-  function doForgotPw(){
-    var email = document.getElementById('li-email').value.trim() || prompt('登録したメールアドレスを入力してください:');
-    if(!email) return;
-    window._resetPw(email).then(function(){ alert('パスワード再設定メールを送信しました'); }).catch(function(e){ alert('送信に失敗しました: '+e.message); });
-  }
-  function doLogout(){ window._signOut(); }
+    function renderCard(html) {
+      document.getElementById('card').innerHTML = html;
+    }
 
-  // ============================================================
-  // 認証状態監視
-  // ============================================================
-  var _customLoggedInText = null; // doApply()成功直後だけ、専用メッセージを出すために使う
+    function renderError(msg) {
+      renderCard('<h1>ご案内</h1><div class="box err">' + escHtml(msg) + '</div>');
+    }
 
-  function initAuth(){
-    window._onAuth(function(user){
-      if(user){
-        // 自動でadmin.htmlへ飛ばすと、accountsドキュメント作成の反映タイミングなどで
-        // 不具合が出ることがあったため、自動遷移はせず手動リンクのみ表示する。
-        document.getElementById('pg-guest').style.display='none';
-        var title = (_customLoggedInText && _customLoggedInText.title) || 'ログイン済みです';
-        var desc  = (_customLoggedInText && _customLoggedInText.desc)  || '審査状況の確認、記事の投稿、プロフィールの編集は管理画面から行えます。';
-        document.getElementById('li-done-title').textContent = title;
-        document.getElementById('li-done-desc').textContent = desc;
-        document.getElementById('pg-loggedin').style.display='block';
-      } else {
-        document.getElementById('pg-guest').style.display='block';
-        document.getElementById('pg-loggedin').style.display='none';
-        _customLoggedInText = null;
+    function renderMessage(title, msg, isOk) {
+      renderCard('<h1>' + escHtml(title) + '</h1><div class="box ' + (isOk ? 'ok' : 'notice') + '">' + escHtml(msg) + '</div>');
+    }
+
+    function callGas(payload) {
+      return fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      }).then(function (r) { return r.json(); });
+    }
+
+    function renderForm(s) {
+      current = s;
+      var canAct = s.aiCheckStatus === 'clean' && !s.autoPublishCancelled && !s.tokenUsed;
+
+      if (!canAct) {
+        var msg = s.tokenUsed
+          ? 'この投稿はすでに処理済みです。'
+          : 'この投稿は現在、編集部による確認待ちの状態です。しばらくお待ちください。';
+        renderMessage('確認できません', msg, false);
+        return;
       }
-    });
-  }
-  document.addEventListener('fb-ready', initAuth, { once:true });
+
+      var issueBox = s.aiNotes
+        ? '<div class="box notice"><b>🤖 AIによる指摘事項</b><br>' + escHtml(s.aiNotes) + '</div>'
+        : '<div class="box ok">🤖 AIチェックの結果、特に問題は見つかりませんでした。</div>';
+
+      var acceptBtn = s.aiHasIssues
+        ? '<button class="btn btn-primary" id="btn-accept" onclick="doAccept()">✅ この修正案の内容で承認する</button>'
+        : '';
+
+      renderCard(
+        '<h1>投稿内容のご確認</h1>' +
+        '<div class="meta">タイトル：' + escHtml(s.title) + '</div>' +
+        issueBox +
+        '<div class="field">' +
+          '<label>タイトル</label>' +
+          '<input type="text" id="f-title" value="' + escHtml(s.aiCorrectedTitle || s.title) + '">' +
+        '</div>' +
+        '<div class="field">' +
+          '<label>本文（HTML可）</label>' +
+          '<textarea id="f-body">' + escHtml(s.aiCorrectedBody || s.body) + '</textarea>' +
+          '<div class="hint">AIの修正案（誤字脱字などを直したもの）が反映された状態です。必要に応じてさらに書き換えてから送信してください。</div>' +
+        '</div>' +
+        '<div class="actions">' +
+          acceptBtn +
+          '<button class="btn btn-secondary" id="btn-edit" onclick="doEditSubmit()">📝 この内容で送信する（再チェックされます）</button>' +
+        '</div>'
+      );
+    }
+
+    function setButtonsDisabled(disabled) {
+      ['btn-accept', 'btn-edit'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.disabled = disabled;
+      });
+    }
+
+    window.doAccept = function () {
+      setButtonsDisabled(true);
+      callGas({ type: 'submission_ai_accept', id: subId, token: token })
+        .then(function (res) {
+          if (res.ok) {
+            renderMessage(res.pending ? '承認しました' : '公開しました', res.message, true);
+          } else {
+            renderMessage('エラー', res.error || '処理に失敗しました。', false);
+          }
+        })
+        .catch(function (e) {
+          renderMessage('エラー', '通信に失敗しました：' + e.message, false);
+          setButtonsDisabled(false);
+        });
+    };
+
+    window.doEditSubmit = function () {
+      var newTitle = document.getElementById('f-title').value;
+      var newBody  = document.getElementById('f-body').value;
+      if (!newTitle.trim()) { alert('タイトルを入力してください'); return; }
+      if (!newBody.trim())  { alert('本文を入力してください'); return; }
+      setButtonsDisabled(true);
+      callGas({ type: 'submission_ai_edit_submit', id: subId, token: token, title: newTitle, body: newBody })
+        .then(function (res) {
+          if (res.ok) {
+            renderMessage('送信しました', res.message, true);
+          } else {
+            renderMessage('エラー', res.error || '処理に失敗しました。', false);
+          }
+        })
+        .catch(function (e) {
+          renderMessage('エラー', '通信に失敗しました：' + e.message, false);
+          setButtonsDisabled(false);
+        });
+    };
+
+    function init() {
+      if (!subId || !token) {
+        renderError('リンクが正しくありません。メールに記載のリンクをもう一度お確かめください。');
+        return;
+      }
+      window._getSubmissionForReview(subId).then(function (s) {
+        if (!s) {
+          renderError('投稿が見つかりませんでした。すでに処理済みか、リンクが無効になっている可能性があります。');
+          return;
+        }
+        if (s.editToken !== token) {
+          renderError('リンクが正しくありません。');
+          return;
+        }
+        renderForm(s);
+      }).catch(function (e) {
+        renderError('読み込みに失敗しました：' + e.message);
+      });
+    }
+
+    document.addEventListener('firebase-ready', init);
   </script>
 </body>
 </html>
