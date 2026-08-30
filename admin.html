@@ -4506,7 +4506,10 @@ function runAiChatTurn() {
         return;
       }
       if (res.functionCall) {
-        _aichatHistory.push({ role: 'model', parts: [{ functionCall: res.functionCall }] });
+        // thoughtSignatureは中身を変更せず、functionCallと同じpartにそのまま含めて返す必要がある
+        var fcPart = { functionCall: res.functionCall };
+        if (res.thoughtSignature) fcPart.thoughtSignature = res.thoughtSignature;
+        _aichatHistory.push({ role: 'model', parts: [fcPart] });
         handleAiChatFunctionCall(res.functionCall);
       } else {
         _aichatHistory.push({ role: 'model', parts: [{ text: res.text || '' }] });
