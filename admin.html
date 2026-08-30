@@ -277,6 +277,15 @@
     .jres.ok{background:var(--gpale);color:var(--green);display:block}
     .jres.err{background:var(--rpale);color:var(--red);display:block}
 
+    /* AIアシスタント（チャット） */
+    .aichat-msg{max-width:80%;padding:.7rem 1rem;border-radius:12px;font-size:.86rem;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+    .aichat-msg.user{align-self:flex-end;background:var(--green);color:#fff;border-bottom-right-radius:3px}
+    .aichat-msg.assistant{align-self:flex-start;background:var(--bg);border:1px solid var(--border);border-bottom-left-radius:3px}
+    .aichat-msg.system{align-self:center;background:none;color:var(--muted);font-size:.78rem;max-width:100%;text-align:center}
+    .aichat-confirm{align-self:flex-start;background:var(--rpale);border:1px solid #f8b4ba;border-radius:10px;padding:.9rem 1.1rem;max-width:85%;font-size:.86rem}
+    .aichat-confirm .acts{display:flex;gap:.5rem;margin-top:.7rem}
+    .aichat-confirm .result{margin-top:.5rem;font-size:.8rem}
+
     /* PIN モーダル */
     .mback{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:200;padding:1rem}
     .mback.on{display:flex}
@@ -361,6 +370,7 @@
       <button class="sb-btn"     data-v="analytics">📊 記事アナリティクス</button>
       <button class="sb-btn"     data-v="feedbacklist">💬 記事フィードバック</button>
       <button class="sb-btn"     data-v="json">📦 JSON入出力</button>
+      <button class="sb-btn"     data-v="aichat">🤖 AIアシスタント</button>
       <div class="sb-sec" style="margin-top:.5rem">サイト</div>
       <a class="sb-btn" href="index.html" target="_blank">🌐 サイトを開く</a>
       <a class="sb-btn" href="ankatsu-map.html" target="_blank">🗺️ アンカツMAPを開く</a>
@@ -1330,6 +1340,23 @@
         </div>
       </div>
 
+      <!-- AIアシスタント -->
+      <div id="v-aichat" class="view">
+        <div class="panel" style="display:flex;flex-direction:column;height:calc(100vh - 200px);min-height:420px">
+          <div class="phead">
+            <span class="ptitle">🤖 AIアシスタント（管理者専用）</span>
+            <button class="btn btn-o btn-sm" onclick="resetAiChat()">🔄 会話をリセット</button>
+          </div>
+          <div id="aichat-log" style="flex:1;overflow-y:auto;padding:1.25rem;display:flex;flex-direction:column;gap:.75rem">
+            <div class="aichat-msg system">記事の作成・編集・削除をお手伝いします。例：「洲本城まつりの記事を作って」「〇〇の記事を削除して」</div>
+          </div>
+          <div style="border-top:1px solid var(--border);padding:.9rem 1.1rem;display:flex;gap:.6rem;flex-shrink:0">
+            <input id="aichat-input" type="text" class="finput" placeholder="例：洲本城まつりの記事を作って" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();sendAiChatMessage();}">
+            <button class="btn btn-g" id="aichat-send-btn" onclick="sendAiChatMessage()">送信</button>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /body -->
   </div><!-- /main -->
 </div><!-- /pg-admin -->
@@ -1499,7 +1526,7 @@ var VTITLES = {
   spots:'🗺️ 地図スポット',
   breaking:'📡 速報バー設定', json:'📦 JSON入出力',
   sitefeatures:'📣 サイト機能設定', feedbacklist:'💬 記事フィードバック', analytics:'📊 記事アナリティクス',
-  specialpages:'🎌 特設ページ'
+  specialpages:'🎌 特設ページ', aichat:'🤖 AIアシスタント'
 };
 
 // 承認済み投稿者が使えるビュー（記事の投稿・自分の記事の編集・プロフィール編集）
@@ -4404,6 +4431,209 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   startAuth();
 });
+
+// ============================================================
+// AIアシスタント（管理者専用チャット・Function Calling）
+// ============================================================
+var _aichatHistory = [];
+var _aichatBusy = false;
+
+function resetAiChat() {
+  _aichatHistory = [];
+  document.getElementById('aichat-log').innerHTML = '<div class="aichat-msg system">記事の作成・編集・削除をお手伝いします。例：「洲本城まつりの記事を作って」「〇〇の記事を削除して」</div>';
+  setAiChatBusy(false);
+}
+
+function renderAiChatMsg(role, text) {
+  var log = document.getElementById('aichat-log');
+  var div = document.createElement('div');
+  div.className = 'aichat-msg ' + role;
+  div.textContent = text;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function renderAiChatSystem(text) {
+  renderAiChatMsg('system', text);
+}
+
+function setAiChatBusy(busy) {
+  _aichatBusy = busy;
+  var btn = document.getElementById('aichat-send-btn');
+  var input = document.getElementById('aichat-input');
+  if (btn) btn.disabled = busy;
+  if (input) input.disabled = busy;
+}
+
+function sendAiChatMessage() {
+  if (_aichatBusy) return;
+  var input = document.getElementById('aichat-input');
+  var text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  renderAiChatMsg('user', text);
+  _aichatHistory.push({ role: 'user', parts: [{ text: text }] });
+  runAiChatTurn();
+}
+
+function runAiChatTurn() {
+  setAiChatBusy(true);
+  fetch(SUBMIT_GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ type: 'admin_ai_chat', secret: ADMIN_API_SECRET, messages: _aichatHistory })
+  }).then(function (r) { return r.json(); })
+    .then(function (res) {
+      if (!res.ok) {
+        setAiChatBusy(false);
+        renderAiChatSystem('❌ エラー：' + res.error);
+        return;
+      }
+      if (res.functionCall) {
+        _aichatHistory.push({ role: 'model', parts: [{ functionCall: res.functionCall }] });
+        handleAiChatFunctionCall(res.functionCall);
+      } else {
+        _aichatHistory.push({ role: 'model', parts: [{ text: res.text || '' }] });
+        renderAiChatMsg('assistant', res.text || '（応答がありませんでした）');
+        setAiChatBusy(false);
+      }
+    })
+    .catch(function (e) {
+      setAiChatBusy(false);
+      renderAiChatSystem('❌ 通信エラー：' + e.message);
+    });
+}
+
+function pushAiChatFunctionResponse(name, responseObj) {
+  _aichatHistory.push({ role: 'function', parts: [{ functionResponse: { name: name, response: responseObj } }] });
+}
+
+function handleAiChatFunctionCall(fc) {
+  var name = fc.name;
+  var args = fc.args || {};
+
+  if (name === 'search_articles') {
+    var q = (args.query || '').toLowerCase();
+    var results = articles.filter(function (a) {
+      return (a.title || '').toLowerCase().indexOf(q) >= 0 || (a.category || '').indexOf(args.query || '') >= 0;
+    }).slice(0, 15).map(function (a) {
+      return { id: a.id, title: a.title, category: a.category, date: fmtDate(a.createdAt) };
+    });
+    renderAiChatSystem('🔍 「' + args.query + '」で検索：' + results.length + '件見つかりました');
+    pushAiChatFunctionResponse(name, { results: results });
+    runAiChatTurn();
+    return;
+  }
+
+  if (name === 'create_article') {
+    var newData = {
+      title: args.title || '',
+      slug: 'ai-' + Date.now(),
+      category: args.category || '',
+      categories: args.category ? [args.category] : [],
+      body: args.body || '',
+      author: args.author || '編集部',
+      tags: Array.isArray(args.tags) ? args.tags : [],
+      thumbnail: '',
+      featured: false,
+      createdAt: window._ts()
+    };
+    window._addDoc('articles', newData).then(function (ref) {
+      renderAiChatSystem('✅ 記事「' + newData.title + '」を作成しました');
+      pushAiChatFunctionResponse(name, { ok: true, id: ref.id, title: newData.title });
+      return loadArticles();
+    }).then(function () {
+      runAiChatTurn();
+    }).catch(function (e) {
+      renderAiChatSystem('❌ 作成に失敗しました：' + e.message);
+      pushAiChatFunctionResponse(name, { ok: false, error: String(e) });
+      runAiChatTurn();
+    });
+    return;
+  }
+
+  if (name === 'edit_article') {
+    var id = args.id;
+    var fields = {};
+    ['title', 'body', 'category'].forEach(function (k) { if (args[k] !== undefined) fields[k] = args[k]; });
+    if (Array.isArray(args.tags)) fields.tags = args.tags;
+    if (fields.category) fields.categories = [fields.category];
+    if (!id || !Object.keys(fields).length) {
+      renderAiChatSystem('❌ 編集する記事、または変更内容が指定されていません');
+      pushAiChatFunctionResponse(name, { ok: false, error: 'id or fields missing' });
+      runAiChatTurn();
+      return;
+    }
+    window._updateDoc('articles', id, fields).then(function () {
+      renderAiChatSystem('✅ 記事を更新しました');
+      pushAiChatFunctionResponse(name, { ok: true, id: id });
+      return loadArticles();
+    }).then(function () {
+      runAiChatTurn();
+    }).catch(function (e) {
+      renderAiChatSystem('❌ 更新に失敗しました：' + e.message);
+      pushAiChatFunctionResponse(name, { ok: false, error: String(e) });
+      runAiChatTurn();
+    });
+    return;
+  }
+
+  if (name === 'request_delete_article') {
+    showAiChatDeleteConfirm(args.id, args.title || '（タイトル不明）');
+    return; // ユーザーが確認ボタンを押すまで、ここでは runAiChatTurn() を呼ばない
+  }
+
+  // 未知の関数呼び出し（想定外のケース）
+  pushAiChatFunctionResponse(name, { ok: false, error: 'unknown function: ' + name });
+  runAiChatTurn();
+}
+
+function showAiChatDeleteConfirm(id, title) {
+  var log = document.getElementById('aichat-log');
+  var div = document.createElement('div');
+  div.className = 'aichat-confirm';
+  var escTitle = String(title).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  div.innerHTML = '⚠️ 「' + escTitle + '」を削除します。よろしいですか？<br>この操作は取り消せません。'
+    + '<div class="acts">'
+    + '<button class="btn btn-r btn-sm" data-act="yes">🗑️ 削除する</button>'
+    + '<button class="btn btn-o btn-sm" data-act="no">キャンセル</button>'
+    + '</div>';
+  div.querySelector('[data-act="yes"]').addEventListener('click', function () { confirmAiChatDelete(id, title, true, div); });
+  div.querySelector('[data-act="no"]').addEventListener('click', function () { confirmAiChatDelete(id, title, false, div); });
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  setAiChatBusy(true); // ユーザーがボタンを押すまで、次のメッセージ送信はブロックしておく
+}
+
+function confirmAiChatDelete(id, title, doDelete, wrapEl) {
+  wrapEl.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+  var resultEl = document.createElement('div');
+  resultEl.className = 'result';
+  wrapEl.appendChild(resultEl);
+
+  if (!doDelete) {
+    resultEl.style.color = 'var(--muted)';
+    resultEl.textContent = 'キャンセルしました';
+    pushAiChatFunctionResponse('request_delete_article', { ok: false, cancelled: true });
+    runAiChatTurn();
+    return;
+  }
+
+  window._deleteDoc('articles', id).then(function () {
+    resultEl.style.color = 'var(--green)';
+    resultEl.textContent = '✅ 削除しました';
+    pushAiChatFunctionResponse('request_delete_article', { ok: true, id: id });
+    return loadArticles();
+  }).then(function () {
+    runAiChatTurn();
+  }).catch(function (e) {
+    resultEl.style.color = 'var(--red)';
+    resultEl.textContent = '❌ 削除に失敗しました：' + e.message;
+    pushAiChatFunctionResponse('request_delete_article', { ok: false, error: String(e) });
+    runAiChatTurn();
+  });
+}
+
 </script>
 </body>
 </html>
