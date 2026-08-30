@@ -4476,14 +4476,30 @@ function sendAiChatMessage() {
   runAiChatTurn();
 }
 
+function showAiChatThinking() {
+  var log = document.getElementById('aichat-log');
+  var div = document.createElement('div');
+  div.className = 'aichat-msg assistant aichat-thinking';
+  div.id = 'aichat-thinking';
+  div.innerHTML = '<span class="spin" style="border-top-color:var(--green);border-color:var(--border)"></span> 考え中…';
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+function hideAiChatThinking() {
+  var el = document.getElementById('aichat-thinking');
+  if (el) el.remove();
+}
+
 function runAiChatTurn() {
   setAiChatBusy(true);
+  showAiChatThinking();
   fetch(SUBMIT_GAS_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({ type: 'admin_ai_chat', secret: ADMIN_API_SECRET, messages: _aichatHistory })
   }).then(function (r) { return r.json(); })
     .then(function (res) {
+      hideAiChatThinking();
       if (!res.ok) {
         setAiChatBusy(false);
         renderAiChatSystem('❌ エラー：' + res.error);
@@ -4499,13 +4515,15 @@ function runAiChatTurn() {
       }
     })
     .catch(function (e) {
+      hideAiChatThinking();
       setAiChatBusy(false);
       renderAiChatSystem('❌ 通信エラー：' + e.message);
     });
 }
 
 function pushAiChatFunctionResponse(name, responseObj) {
-  _aichatHistory.push({ role: 'function', parts: [{ functionResponse: { name: name, response: responseObj } }] });
+  // 現行のGemini APIでは、関数の実行結果は role:'function' ではなく role:'user' で渡す仕様
+  _aichatHistory.push({ role: 'user', parts: [{ functionResponse: { name: name, response: responseObj } }] });
 }
 
 function handleAiChatFunctionCall(fc) {
@@ -4525,31 +4543,15 @@ function handleAiChatFunctionCall(fc) {
     return;
   }
 
-  if (name === 'create_article') {
-    var newData = {
+  if (name === 'propose_article') {
+    showAiChatArticleProposal({
       title: args.title || '',
-      slug: 'ai-' + Date.now(),
       category: args.category || '',
-      categories: args.category ? [args.category] : [],
       body: args.body || '',
       author: args.author || '編集部',
-      tags: Array.isArray(args.tags) ? args.tags : [],
-      thumbnail: '',
-      featured: false,
-      createdAt: window._ts()
-    };
-    window._addDoc('articles', newData).then(function (ref) {
-      renderAiChatSystem('✅ 記事「' + newData.title + '」を作成しました');
-      pushAiChatFunctionResponse(name, { ok: true, id: ref.id, title: newData.title });
-      return loadArticles();
-    }).then(function () {
-      runAiChatTurn();
-    }).catch(function (e) {
-      renderAiChatSystem('❌ 作成に失敗しました：' + e.message);
-      pushAiChatFunctionResponse(name, { ok: false, error: String(e) });
-      runAiChatTurn();
+      tags: Array.isArray(args.tags) ? args.tags : []
     });
-    return;
+    return; // ユーザーが「投稿する」を押すまで、ここでは runAiChatTurn() を呼ばない
   }
 
   if (name === 'edit_article') {
@@ -4586,6 +4588,70 @@ function handleAiChatFunctionCall(fc) {
   // 未知の関数呼び出し（想定外のケース）
   pushAiChatFunctionResponse(name, { ok: false, error: 'unknown function: ' + name });
   runAiChatTurn();
+}
+
+function showAiChatArticleProposal(draft) {
+  var log = document.getElementById('aichat-log');
+  var div = document.createElement('div');
+  div.className = 'aichat-confirm';
+  var escTitle = String(draft.title).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  var bodyPreview = draft.body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (bodyPreview.length > 150) bodyPreview = bodyPreview.slice(0, 150) + '…';
+  div.innerHTML = '📝 <b>記事案</b><br>'
+    + '<div style="margin-top:.5rem"><b>' + escTitle + '</b></div>'
+    + '<div style="font-size:.78rem;color:var(--muted);margin:.2rem 0 .5rem">'
+      + (draft.category || 'カテゴリ未設定') + (draft.tags.length ? '　🏷️ ' + draft.tags.join('、') : '') + '</div>'
+    + '<div style="font-size:.82rem;color:var(--text)">' + bodyPreview.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>'
+    + '<div class="acts">'
+    + '<button class="btn btn-g btn-sm" data-act="yes">✅ この内容で投稿する</button>'
+    + '<button class="btn btn-o btn-sm" data-act="no">この案は使わない</button>'
+    + '</div>';
+  div.querySelector('[data-act="yes"]').addEventListener('click', function () { confirmAiChatArticle(draft, true, div); });
+  div.querySelector('[data-act="no"]').addEventListener('click', function () { confirmAiChatArticle(draft, false, div); });
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  setAiChatBusy(true); // ユーザーがボタンを押すまで、次のメッセージ送信はブロックしておく
+}
+
+function confirmAiChatArticle(draft, doPost, wrapEl) {
+  wrapEl.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+  var resultEl = document.createElement('div');
+  resultEl.className = 'result';
+  wrapEl.appendChild(resultEl);
+
+  if (!doPost) {
+    resultEl.style.color = 'var(--muted)';
+    resultEl.textContent = 'この案は使いませんでした';
+    pushAiChatFunctionResponse('propose_article', { ok: false, posted: false });
+    runAiChatTurn();
+    return;
+  }
+
+  var newData = {
+    title: draft.title,
+    slug: 'ai-' + Date.now(),
+    category: draft.category,
+    categories: draft.category ? [draft.category] : [],
+    body: draft.body,
+    author: draft.author,
+    tags: draft.tags,
+    thumbnail: '',
+    featured: false,
+    createdAt: window._ts()
+  };
+  window._addDoc('articles', newData).then(function (ref) {
+    resultEl.style.color = 'var(--green)';
+    resultEl.textContent = '✅ 記事を投稿しました';
+    pushAiChatFunctionResponse('propose_article', { ok: true, posted: true, id: ref.id, title: newData.title });
+    return loadArticles();
+  }).then(function () {
+    runAiChatTurn();
+  }).catch(function (e) {
+    resultEl.style.color = 'var(--red)';
+    resultEl.textContent = '❌ 投稿に失敗しました：' + e.message;
+    pushAiChatFunctionResponse('propose_article', { ok: false, error: String(e) });
+    runAiChatTurn();
+  });
 }
 
 function showAiChatDeleteConfirm(id, title) {
