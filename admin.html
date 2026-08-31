@@ -4534,9 +4534,17 @@ function handleAiChatFunctionCall(fc) {
   var args = fc.args || {};
 
   if (name === 'search_articles') {
-    var q = (args.query || '').toLowerCase();
+    var terms = (args.query || '').toLowerCase().split(/\s+/).filter(Boolean);
     var results = articles.filter(function (a) {
-      return (a.title || '').toLowerCase().indexOf(q) >= 0 || (a.category || '').indexOf(args.query || '') >= 0;
+      var haystack = [
+        a.title || '',
+        a.category || '',
+        (Array.isArray(a.categories) ? a.categories.join(' ') : ''),
+        (Array.isArray(a.tags) ? a.tags.join(' ') : ''),
+        (a.body || '').replace(/<[^>]*>/g, ' ')
+      ].join(' ').toLowerCase();
+      // スペース区切りのいずれかのキーワードを含んでいればヒット（OR検索）
+      return terms.some(function (t) { return haystack.indexOf(t) >= 0; });
     }).slice(0, 15).map(function (a) {
       return { id: a.id, title: a.title, category: a.category, date: fmtDate(a.createdAt) };
     });
@@ -4561,6 +4569,7 @@ function handleAiChatFunctionCall(fc) {
     var id = args.id;
     var fields = {};
     ['title', 'body', 'category'].forEach(function (k) { if (args[k] !== undefined) fields[k] = args[k]; });
+    if (fields.body) fields.body = stripStrayMarkdown(fields.body);
     if (Array.isArray(args.tags)) fields.tags = args.tags;
     if (fields.category) fields.categories = [fields.category];
     if (!id || !Object.keys(fields).length) {
@@ -4593,18 +4602,29 @@ function handleAiChatFunctionCall(fc) {
   runAiChatTurn();
 }
 
+// Geminiが指示を無視してMarkdown記法を混ぜてしまった場合の保険（チャットのfunction call引数はGAS側の
+// cleanupStrayMarkdownを経由しないため、ここでも同じ変換をかけておく）
+function stripStrayMarkdown(html) {
+  if (!html) return html;
+  return String(html)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^#{1,3}\s*(.+)$/gm, '<h3>$1</h3>');
+}
+
 function showAiChatArticleProposal(draft) {
+  draft.body = stripStrayMarkdown(draft.body);
   var log = document.getElementById('aichat-log');
   var div = document.createElement('div');
   div.className = 'aichat-confirm';
   var escTitle = String(draft.title).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  var bodyPreview = draft.body.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-  if (bodyPreview.length > 150) bodyPreview = bodyPreview.slice(0, 150) + '…';
+  // 投稿前にきちんと中身を確認できるよう、省略せず全文をスクロール可能な枠で表示する
+  var bodyText = draft.body.replace(/<[^>]*>/g, '\n').replace(/\n{2,}/g, '\n\n').trim();
+  var bodyEsc = bodyText.replace(/</g, '&lt;').replace(/>/g, '&gt;');
   div.innerHTML = '📝 <b>記事案</b><br>'
     + '<div style="margin-top:.5rem"><b>' + escTitle + '</b></div>'
     + '<div style="font-size:.78rem;color:var(--muted);margin:.2rem 0 .5rem">'
       + (draft.category || 'カテゴリ未設定') + (draft.tags.length ? '　🏷️ ' + draft.tags.join('、') : '') + '</div>'
-    + '<div style="font-size:.82rem;color:var(--text)">' + bodyPreview.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>'
+    + '<div style="font-size:.82rem;color:var(--text);white-space:pre-wrap;max-height:260px;overflow-y:auto;background:var(--card);border:1px solid var(--border);border-radius:6px;padding:.7rem .9rem">' + bodyEsc + '</div>'
     + '<div class="acts">'
     + '<button class="btn btn-g btn-sm" data-act="yes">✅ この内容で投稿する</button>'
     + '<button class="btn btn-o btn-sm" data-act="no">この案は使わない</button>'
@@ -4643,9 +4663,10 @@ function confirmAiChatArticle(draft, doPost, wrapEl) {
     createdAt: window._ts()
   };
   window._addDoc('articles', newData).then(function (ref) {
+    var articleUrl = location.origin + location.pathname.replace('admin.html', 'index.html') + '#article/' + encodeURIComponent(newData.slug);
     resultEl.style.color = 'var(--green)';
-    resultEl.textContent = '✅ 記事を投稿しました';
-    pushAiChatFunctionResponse('propose_article', { ok: true, posted: true, id: ref.id, title: newData.title });
+    resultEl.innerHTML = '✅ 記事を投稿しました　<a href="' + articleUrl + '" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline">記事を見る →</a>';
+    pushAiChatFunctionResponse('propose_article', { ok: true, posted: true, id: ref.id, title: newData.title, url: articleUrl });
     return loadArticles();
   }).then(function () {
     runAiChatTurn();
