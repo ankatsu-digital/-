@@ -79,7 +79,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700;900&family=Noto+Sans+JP:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
 
   <style>
     :root {
@@ -533,7 +533,11 @@
                 <label class="flabel">サムネイル画像URL</label>
                 <input id="f-thumb" type="url" class="finput" placeholder="https://i.imgur.com/xxxxx.jpg" />
                 <img id="f-thumb-prev" class="tprev" alt="プレビュー" />
-                <div class="thint">💡 <a href="https://imgur.com/upload" target="_blank">Imgur</a> に画像をアップして「Direct Link」をコピーして貼ってください。無料・登録不要。</div>
+                <div style="display:flex;align-items:center;gap:.65rem;margin-top:.5rem;flex-wrap:wrap">
+                  <button type="button" class="btn btn-o btn-sm" id="f-thumb-auto-btn" onclick="autoGenerateThumbForForm()">🖼️ タイトル・カテゴリから自動生成</button>
+                  <span id="f-thumb-auto-status" style="font-size:.78rem;color:var(--muted)"></span>
+                </div>
+                <div class="thint">💡 上のボタンで、和柄背景＋タイトルのアイキャッチ画像を自動生成してアップロードできます。手動で用意した画像を使いたい場合は、<a href="https://imgur.com/upload" target="_blank">Imgur</a> にアップして「Direct Link」を直接貼ってもOKです。</div>
               </div>
 
               <div class="frow full">
@@ -4568,7 +4572,7 @@ function handleAiChatFunctionCall(fc) {
   if (name === 'edit_article') {
     var id = args.id;
     var fields = {};
-    ['title', 'body', 'category'].forEach(function (k) { if (args[k] !== undefined) fields[k] = args[k]; });
+    ['title', 'body', 'category', 'author'].forEach(function (k) { if (args[k] !== undefined) fields[k] = args[k]; });
     if (fields.body) fields.body = stripStrayMarkdown(fields.body);
     if (Array.isArray(args.tags)) fields.tags = args.tags;
     if (fields.category) fields.categories = [fields.category];
@@ -4650,6 +4654,9 @@ function confirmAiChatArticle(draft, doPost, wrapEl) {
     return;
   }
 
+  resultEl.style.color = 'var(--muted)';
+  resultEl.textContent = '🖼️ アイキャッチ画像を生成中…';
+
   var newData = {
     title: draft.title,
     slug: 'ai-' + Date.now(),
@@ -4662,19 +4669,29 @@ function confirmAiChatArticle(draft, doPost, wrapEl) {
     featured: false,
     createdAt: window._ts()
   };
-  window._addDoc('articles', newData).then(function (ref) {
-    var articleUrl = location.origin + location.pathname.replace('admin.html', 'index.html') + '#article/' + encodeURIComponent(newData.slug);
-    resultEl.style.color = 'var(--green)';
-    resultEl.innerHTML = '✅ 記事を投稿しました　<a href="' + articleUrl + '" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline">記事を見る →</a>';
-    pushAiChatFunctionResponse('propose_article', { ok: true, posted: true, id: ref.id, title: newData.title, url: articleUrl });
-    return loadArticles();
-  }).then(function () {
-    runAiChatTurn();
-  }).catch(function (e) {
-    resultEl.style.color = 'var(--red)';
-    resultEl.textContent = '❌ 投稿に失敗しました：' + e.message;
-    pushAiChatFunctionResponse('propose_article', { ok: false, error: String(e) });
-    runAiChatTurn();
+
+  generateAndUploadEyecatch(draft.title, draft.category)
+    .then(function (url) { newData.thumbnail = url; })
+    .catch(function (e) {
+      console.error('アイキャッチ自動生成に失敗（サムネイル無しで投稿を続行します）:', e);
+    })
+    .then(function () {
+      resultEl.textContent = '';
+      return window._addDoc('articles', newData);
+    })
+    .then(function (ref) {
+      var articleUrl = location.origin + location.pathname.replace('admin.html', 'index.html') + '#article/' + encodeURIComponent(newData.slug);
+      resultEl.style.color = 'var(--green)';
+      resultEl.innerHTML = '✅ 記事を投稿しました' + (newData.thumbnail ? '（アイキャッチ画像つき）' : '') + '　<a href="' + articleUrl + '" target="_blank" rel="noopener" style="color:var(--green);text-decoration:underline">記事を見る →</a>';
+      pushAiChatFunctionResponse('propose_article', { ok: true, posted: true, id: ref.id, title: newData.title, url: articleUrl });
+      return loadArticles();
+    }).then(function () {
+      runAiChatTurn();
+    }).catch(function (e) {
+      resultEl.style.color = 'var(--red)';
+      resultEl.textContent = '❌ 投稿に失敗しました：' + e.message;
+      pushAiChatFunctionResponse('propose_article', { ok: false, error: String(e) });
+      runAiChatTurn();
   });
 }
 
@@ -4721,6 +4738,341 @@ function confirmAiChatDelete(id, title, doDelete, wrapEl) {
     resultEl.textContent = '❌ 削除に失敗しました：' + e.message;
     pushAiChatFunctionResponse('request_delete_article', { ok: false, error: String(e) });
     runAiChatTurn();
+  });
+}
+
+// ============================================================
+// アイキャッチ画像の自動生成（アンカツ アイキャッチメーカーの描画ロジックを移植）
+// ＋ Cloudinaryへの自動アップロード
+// ============================================================
+var CLOUDINARY_CLOUD_NAME   = 'eaiqrsaa';  // ← Cloudinaryの Cloud name
+var CLOUDINARY_UPLOAD_PRESET = 'ankatsu';  // ← Unsigned設定にしたUpload preset名
+
+// サイトの記事カテゴリ10種類に、色と和柄パターンを割り当てる
+var EYECATCH_CATS = {
+  'まちの話題':   { color: '#2d6a4f', dark: '#1f4d39', pattern: 'koushi' },
+  'イベント':     { color: '#1a73e8', dark: '#1558b0', pattern: 'asanoha' },
+  '空き家活用':   { color: '#FF9800', dark: '#E9821C', pattern: 'ichimatsu' },
+  '商店街':       { color: '#e64a4a', dark: '#c92f2f', pattern: 'seigaiha' },
+  '文化':         { color: '#8e5cd9', dark: '#6f3fb8', pattern: 'shippo' },
+  'インタビュー': { color: '#0891b2', dark: '#0e7490', pattern: 'kagome' },
+  '学校・子育て': { color: '#ec4899', dark: '#be185d', pattern: 'asanoha' },
+  '移住・定住':   { color: '#10b981', dark: '#047857', pattern: 'ichimatsu' },
+  '防災':         { color: '#f59e0b', dark: '#b45309', pattern: 'yabane' },
+  'お知らせ':     { color: '#0ea5e9', dark: '#0369a1', pattern: 'sayagata' }
+};
+var EYECATCH_DEFAULT_CAT = { color: '#2d6a4f', dark: '#1f4d39', pattern: 'koushi' };
+
+function eyecatchHexToRgb(hex) {
+  var m = hex.replace('#', '');
+  return [parseInt(m.substr(0, 2), 16), parseInt(m.substr(2, 2), 16), parseInt(m.substr(4, 2), 16)];
+}
+function eyecatchRgba(hex, a) {
+  var rgb = eyecatchHexToRgb(hex);
+  return 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + a + ')';
+}
+
+function eyecatchRoundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// ---- 和柄パターン描画（アイキャッチメーカーから必要な分だけ移植） ----
+function eyecatchDrawAsanoha(ctx, w, h, color) {
+  var s = 46;
+  ctx.strokeStyle = eyecatchRgba(color, 0.16);
+  ctx.lineWidth = 1.4;
+  var rows = Math.ceil(h / (s * 0.87)) + 2, cols = Math.ceil(w / s) + 2;
+  for (var ry = -1; ry < rows; ry++) {
+    for (var rx = -1; rx < cols; rx++) {
+      var offsetX = (ry % 2 === 0) ? 0 : s / 2;
+      var cx = rx * s + offsetX, cy = ry * s * 0.87;
+      ctx.beginPath();
+      for (var i = 0; i < 6; i++) {
+        var a = Math.PI / 3 * i - Math.PI / 6;
+        var px = cx + Math.cos(a) * s * 0.58, py = cy + Math.sin(a) * s * 0.58;
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.closePath(); ctx.stroke();
+      for (var j = 0; j < 6; j++) {
+        var a2 = Math.PI / 3 * j - Math.PI / 6;
+        ctx.beginPath(); ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(a2) * s * 0.58, cy + Math.sin(a2) * s * 0.58);
+        ctx.stroke();
+      }
+    }
+  }
+}
+function eyecatchDrawIchimatsu(ctx, w, h, color) {
+  var s = 54;
+  var cols = Math.ceil(w / s) + 1, rows = Math.ceil(h / s) + 1;
+  for (var ry = 0; ry < rows; ry++) {
+    for (var rx = 0; rx < cols; rx++) {
+      if ((rx + ry) % 2 === 0) {
+        ctx.fillStyle = eyecatchRgba(color, 0.10);
+        ctx.fillRect(rx * s, ry * s, s, s);
+      }
+    }
+  }
+}
+function eyecatchDrawSeigaiha(ctx, w, h, color) {
+  var r = 40;
+  ctx.strokeStyle = eyecatchRgba(color, 0.20);
+  ctx.lineWidth = 2;
+  var cols = Math.ceil(w / r) + 2, rows = Math.ceil(h / (r * 0.7)) + 2;
+  for (var ry = 0; ry < rows; ry++) {
+    for (var rx = -1; rx < cols; rx++) {
+      var cx = rx * r + (ry % 2 === 0 ? 0 : r / 2), cy = ry * r * 0.7;
+      for (var k = 3; k >= 1; k--) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * 0.32 * k, Math.PI, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+  }
+}
+function eyecatchDrawKoushi(ctx, w, h, color) {
+  var s = 42;
+  ctx.strokeStyle = eyecatchRgba(color, 0.16);
+  ctx.lineWidth = 1.6;
+  for (var x = 0; x < w + s; x += s) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+  for (var y = 0; y < h + s; y += s) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+}
+function eyecatchDrawShippo(ctx, w, h, color) {
+  var r = 34;
+  ctx.strokeStyle = eyecatchRgba(color, 0.20);
+  ctx.lineWidth = 1.6;
+  var cols = Math.ceil(w / r) + 2, rows = Math.ceil(h / r) + 2;
+  for (var ry = -1; ry < rows; ry++) {
+    for (var rx = -1; rx < cols; rx++) {
+      var cx = rx * r * 1.0, cy = ry * r * 1.0;
+      ctx.beginPath(); ctx.arc(cx, cy, r * 0.72, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+}
+function eyecatchDrawSayagata(ctx, w, h, color) {
+  var s = 30;
+  ctx.strokeStyle = eyecatchRgba(color, 0.20);
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'square';
+  var cols = Math.ceil(w / s) + 2, rows = Math.ceil(h / s) + 2;
+  for (var ry = -1; ry < rows; ry++) {
+    for (var rx = -1; rx < cols; rx++) {
+      var x = rx * s, y = ry * s;
+      ctx.beginPath();
+      ctx.moveTo(x, y + s * 0.5); ctx.lineTo(x + s * 0.5, y + s * 0.5);
+      ctx.lineTo(x + s * 0.5, y); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + s * 0.5, y + s); ctx.lineTo(x + s, y + s);
+      ctx.lineTo(x + s, y + s * 0.5); ctx.stroke();
+    }
+  }
+}
+function eyecatchDrawKagome(ctx, w, h, color) {
+  var s = 26;
+  ctx.strokeStyle = eyecatchRgba(color, 0.22);
+  ctx.lineWidth = 1.4;
+  var cols = Math.ceil(w / s) + 2, rows = Math.ceil(h / (s * 1.73)) + 2;
+  var deltas = [[0, 1], [1, 0], [1, 1], [0, -1], [-1, 0], [-1, -1]];
+  for (var ry = -1; ry < rows; ry++) {
+    for (var rx = -1; rx < cols; rx++) {
+      var offsetY = (rx % 2 === 0) ? 0 : s * 0.87;
+      var x = rx * s * 1.5, y = ry * s * 1.73 + offsetY;
+      deltas.forEach(function (d) {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + d[0] * s * 0.87, y + d[1] * s * 0.87);
+        ctx.stroke();
+      });
+    }
+  }
+}
+function eyecatchDrawYabane(ctx, w, h, color) {
+  var s = 46;
+  ctx.strokeStyle = eyecatchRgba(color, 0.22);
+  ctx.lineWidth = 1.6;
+  var cols = Math.ceil(w / s) + 3, rows = Math.ceil(h / (s * 0.5)) + 3;
+  for (var ry = -1; ry < rows; ry++) {
+    for (var rx = -1; rx < cols; rx++) {
+      var offsetX = (ry % 2 === 0) ? 0 : s / 2;
+      var x = rx * s + offsetX, y = ry * s * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + s * 0.5, y + s * 0.28);
+      ctx.lineTo(x + s * 0.5, y + s * 0.5);
+      ctx.stroke();
+    }
+  }
+}
+var EYECATCH_PATTERNS = {
+  asanoha: eyecatchDrawAsanoha, ichimatsu: eyecatchDrawIchimatsu, seigaiha: eyecatchDrawSeigaiha,
+  koushi: eyecatchDrawKoushi, shippo: eyecatchDrawShippo, sayagata: eyecatchDrawSayagata, kagome: eyecatchDrawKagome, yabane: eyecatchDrawYabane
+};
+
+function eyecatchDrawGrain(ctx, w, h, seed) {
+  var s = seed * 100000;
+  function rnd() { s = (s * 9301 + 49297) % 233280; return s / 233280; }
+  ctx.save();
+  ctx.globalAlpha = 0.05;
+  for (var i = 0; i < 900; i++) {
+    var x = rnd() * w, y = rnd() * h, r = rnd() * 1.2 + 0.2;
+    ctx.fillStyle = rnd() > 0.5 ? '#000' : '#fff';
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function eyecatchWrapText(ctx, text, maxWidth) {
+  var chars = text.split('');
+  var lines = [];
+  var cur = '';
+  chars.forEach(function (ch) {
+    var test = cur + ch;
+    if (ctx.measureText(test).width > maxWidth && cur) { lines.push(cur); cur = ch; }
+    else { cur = test; }
+  });
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+// タイトル・カテゴリだけから、1200×630のアイキャッチ画像（canvas）を生成する
+function renderEyecatchCanvas(title, categoryLabel) {
+  var w = 1200, h = 630;
+  var canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  var ctx = canvas.getContext('2d');
+  var c = EYECATCH_CATS[categoryLabel] || EYECATCH_DEFAULT_CAT;
+  var S = Math.sqrt(w * h);
+
+  ctx.fillStyle = '#FFFDF9';
+  ctx.fillRect(0, 0, w, h);
+  var grad = ctx.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, eyecatchRgba(c.color, 0.13));
+  grad.addColorStop(1, eyecatchRgba(c.color, 0.02));
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
+
+  EYECATCH_PATTERNS[c.pattern](ctx, w, h, c.color);
+  eyecatchDrawGrain(ctx, w, h, Math.random());
+
+  var grad2 = ctx.createLinearGradient(0, h * 0.55, 0, h);
+  grad2.addColorStop(0, 'rgba(255,253,249,0)');
+  grad2.addColorStop(1, 'rgba(255,253,249,0.78)');
+  ctx.fillStyle = grad2; ctx.fillRect(0, 0, w, h);
+
+  var pad = S * 0.075;
+
+  // カテゴリバッジ
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.font = "800 " + Math.round(S * 0.026) + "px 'Noto Sans JP', sans-serif";
+  var badgeText = categoryLabel || '記事';
+  var badgeMetrics = ctx.measureText(badgeText);
+  var badgeH = S * 0.062;
+  var badgeW = badgeMetrics.width + S * 0.05;
+  var badgeY = pad;
+  ctx.fillStyle = c.color;
+  eyecatchRoundRect(ctx, pad, badgeY, badgeW, badgeH, badgeH / 2);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.fillText(badgeText, pad + S * 0.025, badgeY + badgeH / 2 + S * 0.002);
+
+  // ブランド表記
+  ctx.font = "700 " + Math.round(S * 0.018) + "px 'Noto Sans JP', sans-serif";
+  var brandText = 'アンカツ＋';
+  var brandMetrics = ctx.measureText(brandText);
+  var brandPadX = S * 0.018;
+  var brandW = brandMetrics.width + brandPadX * 2;
+  var brandH = S * 0.038;
+  ctx.fillStyle = eyecatchRgba(c.dark, 0.10);
+  eyecatchRoundRect(ctx, w - pad - brandW, badgeY + badgeH / 2 - brandH / 2, brandW, brandH, brandH / 2);
+  ctx.fill();
+  ctx.fillStyle = c.dark;
+  ctx.textAlign = 'right';
+  ctx.fillText(brandText, w - pad - brandPadX, badgeY + badgeH / 2 + S * 0.001);
+  ctx.textAlign = 'left';
+
+  // タイトル
+  ctx.textBaseline = 'alphabetic';
+  var titleSize = Math.round(S * (title.length > 22 ? 0.062 : 0.074));
+  ctx.font = "900 " + titleSize + "px 'Noto Serif JP', serif";
+  ctx.fillStyle = '#2a2420';
+  var lines = eyecatchWrapText(ctx, title || '記事タイトル', w - pad * 2).slice(0, 3);
+  var lineHeight = titleSize * 1.34;
+  var titleBottom = h - pad;
+  var startY = titleBottom - lineHeight * (lines.length - 1);
+  lines.forEach(function (line, i) { ctx.fillText(line, pad, startY + i * lineHeight); });
+
+  // 見出し脇のアクセントライン
+  var ascent = titleSize * 0.86, descent = titleSize * 0.18;
+  var barTop = startY - ascent;
+  var barBottom = startY + lineHeight * (lines.length - 1) + descent;
+  ctx.fillStyle = c.color;
+  ctx.fillRect(pad - S * 0.028, barTop, S * 0.009, barBottom - barTop);
+
+  return canvas;
+}
+
+// アイキャッチを生成してCloudinaryにアップロードし、画像URLを返す（Promise）
+function generateAndUploadEyecatch(title, categoryLabel) {
+  return new Promise(function (resolve, reject) {
+    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+      reject(new Error('Cloudinaryの設定がありません'));
+      return;
+    }
+    try {
+      var canvas = renderEyecatchCanvas(title, categoryLabel);
+      canvas.toBlob(function (blob) {
+        if (!blob) { reject(new Error('画像の生成に失敗しました')); return; }
+        var formData = new FormData();
+        formData.append('file', blob, 'eyecatch.png');
+        formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+        formData.append('folder', 'ankatsu-eyecatch');
+        fetch('https://api.cloudinary.com/v1_1/' + CLOUDINARY_CLOUD_NAME + '/image/upload', {
+          method: 'POST',
+          body: formData
+        }).then(function (r) { return r.json(); })
+          .then(function (json) {
+            if (json.secure_url) resolve(json.secure_url);
+            else reject(new Error(json.error ? json.error.message : 'アップロードに失敗しました'));
+          }).catch(reject);
+      }, 'image/png');
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
+// 通常の記事フォーム（新規作成・編集）用：入力中のタイトル・カテゴリからアイキャッチを自動生成し、
+// サムネイルURL欄に自動でセットする
+function autoGenerateThumbForForm() {
+  var title = document.getElementById('f-title').value.trim();
+  var cats = getFormCategories();
+  var category = cats[0] || '';
+
+  if (!title) { alert('先にタイトルを入力してください'); return; }
+  if (!category) { alert('先にカテゴリを選択してください'); return; }
+
+  var btn = document.getElementById('f-thumb-auto-btn');
+  var statusEl = document.getElementById('f-thumb-auto-status');
+  btn.disabled = true;
+  statusEl.textContent = '🖼️ 画像を生成・アップロード中…';
+
+  generateAndUploadEyecatch(title, category).then(function (url) {
+    document.getElementById('f-thumb').value = url;
+    var prev = document.getElementById('f-thumb-prev');
+    prev.src = url; prev.style.display = 'block';
+    statusEl.textContent = '✅ 自動生成しました';
+    btn.disabled = false;
+    setTimeout(function () { statusEl.textContent = ''; }, 3000);
+  }).catch(function (e) {
+    statusEl.textContent = '';
+    btn.disabled = false;
+    alert('アイキャッチの生成に失敗しました：' + e.message);
   });
 }
 
