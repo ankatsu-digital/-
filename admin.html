@@ -1349,7 +1349,11 @@
         <div class="panel" style="display:flex;flex-direction:column;height:calc(100vh - 200px);min-height:420px">
           <div class="phead">
             <span class="ptitle">🤖 AIアシスタント（管理者専用）</span>
-            <button class="btn btn-o btn-sm" onclick="resetAiChat()">🔄 会話をリセット</button>
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+              <button class="btn btn-o btn-sm" onclick="openAiChatHistory()">📜 過去の会話</button>
+              <button class="btn btn-o btn-sm" onclick="copyAiChatTranscript()">📋 会話をコピー</button>
+              <button class="btn btn-o btn-sm" onclick="resetAiChat()">🔄 新しい会話</button>
+            </div>
           </div>
           <div id="aichat-log" style="flex:1;overflow-y:auto;padding:1.25rem;display:flex;flex-direction:column;gap:.75rem">
             <div class="aichat-msg system">記事の作成・編集・削除をお手伝いします。例：「洲本城まつりの記事を作って」「〇〇の記事を削除して」</div>
@@ -1388,6 +1392,18 @@
     <div class="macts">
       <button class="btn btn-o" onclick="closeCM()">閉じる</button>
       <button class="btn btn-r btn-sm" id="cm-del">🗑️ 削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- AIアシスタント：過去の会話一覧モーダル -->
+<div class="mback" id="aichat-history-modal">
+  <div class="mbox" style="max-width:480px">
+    <h3>📜 過去の会話</h3>
+    <p style="margin-bottom:1rem">選ぶと、その会話の続きから再開できます（30日以上前の会話は自動的に整理されます）。</p>
+    <div id="aichat-history-list" style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:.5rem"></div>
+    <div class="macts">
+      <button class="btn btn-o" onclick="closeAiChatHistory()">閉じる</button>
     </div>
   </div>
 </div>
@@ -4441,12 +4457,168 @@ document.addEventListener('DOMContentLoaded', function() {
 // ============================================================
 var _aichatHistory = [];
 var _aichatBusy = false;
+var _aichatSessionId = null; // 現在の会話のFirestoreドキュメントID（未保存ならnull）
+var AICHAT_WELCOME_HTML = '<div class="aichat-msg system">記事の作成・編集・削除をお手伝いします。例：「洲本城まつりの記事を作って」「〇〇の記事を削除して」</div>';
+var AICHAT_RETENTION_DAYS = 30;
 
 function resetAiChat() {
   _aichatHistory = [];
-  document.getElementById('aichat-log').innerHTML = '<div class="aichat-msg system">記事の作成・編集・削除をお手伝いします。例：「洲本城まつりの記事を作って」「〇〇の記事を削除して」</div>';
+  _aichatSessionId = null;
+  document.getElementById('aichat-log').innerHTML = AICHAT_WELCOME_HTML;
   setAiChatBusy(false);
 }
+
+// 会話が更新されるたびに、Firestoreへ自動保存する（会話が空なら何もしない）
+function saveAiChatSession() {
+  if (!_aichatHistory.length) return;
+  var data = { history: _aichatHistory, title: deriveAiChatTitle(), updatedAt: window._ts() };
+  if (_aichatSessionId) {
+    window._updateDoc('aichatSessions', _aichatSessionId, data).catch(function (e) { console.error('会話の自動保存に失敗:', e); });
+  } else {
+    data.createdAt = window._ts();
+    window._addDoc('aichatSessions', data).then(function (ref) { _aichatSessionId = ref.id; })
+      .catch(function (e) { console.error('会話の自動保存に失敗:', e); });
+  }
+}
+
+// 履歴に1ターン追加すると同時に自動保存する（直接 _aichatHistory.push しないで、これを使う）
+function addAiChatTurn(turn) {
+  _aichatHistory.push(turn);
+  saveAiChatSession();
+}
+
+function deriveAiChatTitle() {
+  var firstUserTurn = _aichatHistory.find(function (t) {
+    return t.role === 'user' && t.parts[0] && typeof t.parts[0].text === 'string' && t.parts[0].text;
+  });
+  var text = firstUserTurn ? firstUserTurn.parts[0].text : '無題の会話';
+  return text.length > 30 ? text.slice(0, 30) + '…' : text;
+}
+
+// ---- 過去の会話一覧 ----
+function openAiChatHistory() {
+  document.getElementById('aichat-history-modal').classList.add('on');
+  renderAiChatHistoryList();
+}
+function closeAiChatHistory() {
+  document.getElementById('aichat-history-modal').classList.remove('on');
+}
+
+async function renderAiChatHistoryList() {
+  var listEl = document.getElementById('aichat-history-list');
+  listEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:1rem;font-size:.85rem">読み込み中…</div>';
+  try {
+    var snap = await window._getAll('aichatSessions');
+    var sessions = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+
+    // 30日以上前の会話は、一覧を開いたタイミングでこっそり削除する
+    var cutoff = Date.now() - AICHAT_RETENTION_DAYS * 86400000;
+    var fresh = [];
+    sessions.forEach(function (s) {
+      var t = (s.updatedAt && s.updatedAt.toDate) ? s.updatedAt.toDate().getTime() : 0;
+      if (t && t < cutoff) {
+        window._deleteDoc('aichatSessions', s.id).catch(function () {});
+      } else {
+        fresh.push(s);
+      }
+    });
+    sessions = fresh;
+
+    sessions.sort(function (a, b) {
+      var ta = (a.updatedAt && a.updatedAt.toDate) ? a.updatedAt.toDate() : new Date(0);
+      var tb = (b.updatedAt && b.updatedAt.toDate) ? b.updatedAt.toDate() : new Date(0);
+      return tb - ta;
+    });
+
+    if (!sessions.length) {
+      listEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:1rem;font-size:.85rem">まだ会話の記録がありません</div>';
+      return;
+    }
+    listEl.innerHTML = sessions.map(function (s) {
+      var title = (s.title || '無題の会話').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return '<div style="display:flex;align-items:center;gap:.5rem;padding:.7rem .9rem;border:1px solid var(--border);border-radius:8px">'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:.85rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + title + '</div>'
+        + '<div style="font-size:.72rem;color:var(--light)">' + fmtDate(s.updatedAt) + '</div>'
+        + '</div>'
+        + '<button class="btn btn-g btn-sm" onclick="loadAiChatSession(\'' + s.id + '\')">開く</button>'
+        + '<button class="btn btn-r btn-sm" onclick="deleteAiChatSession(\'' + s.id + '\')">🗑️</button>'
+        + '</div>';
+    }).join('');
+  } catch (e) {
+    listEl.innerHTML = '<div style="text-align:center;color:var(--red);padding:1rem;font-size:.85rem">読み込みに失敗しました：' + e.message + '</div>';
+  }
+}
+
+async function loadAiChatSession(id) {
+  try {
+    var snap = await window._getDoc('aichatSessions', id);
+    if (!snap.exists()) { alert('会話が見つかりませんでした（削除された可能性があります）'); renderAiChatHistoryList(); return; }
+    var data = snap.data();
+    _aichatHistory = data.history || [];
+    _aichatSessionId = id;
+    closeAiChatHistory();
+    replayAiChatHistory();
+  } catch (e) {
+    alert('読み込みに失敗しました：' + e.message);
+  }
+}
+
+async function deleteAiChatSession(id) {
+  if (!confirm('この会話を削除します。よろしいですか？')) return;
+  try {
+    await window._deleteDoc('aichatSessions', id);
+    if (_aichatSessionId === id) resetAiChat();
+    renderAiChatHistoryList();
+  } catch (e) {
+    alert('削除に失敗しました：' + e.message);
+  }
+}
+
+// 保存されていた会話のやり取りを、チャット画面に再現する（読み込みタップ操作は再現しない、記録の表示のみ）
+function replayAiChatHistory() {
+  var log = document.getElementById('aichat-log');
+  log.innerHTML = '';
+  _aichatHistory.forEach(function (turn) {
+    (turn.parts || []).forEach(function (part) {
+      if (typeof part.text === 'string' && part.text) {
+        renderAiChatMsg(turn.role === 'user' ? 'user' : 'assistant', part.text);
+      } else if (part.functionCall) {
+        renderAiChatSystem('🔧 ' + part.functionCall.name);
+      } else if (part.functionResponse) {
+        var r = part.functionResponse.response || {};
+        var summary = r.ok === false ? '結果：完了しませんでした' : (r.results ? '結果：' + r.results.length + '件' : '結果：完了');
+        renderAiChatSystem('→ ' + summary);
+      }
+    });
+  });
+  if (!log.children.length) log.innerHTML = AICHAT_WELCOME_HTML;
+  log.scrollTop = log.scrollHeight;
+  setAiChatBusy(false);
+}
+
+// ---- 会話をテキストとしてコピー（他の人にLINE・Slack等で共有する用） ----
+function copyAiChatTranscript() {
+  var lines = [];
+  _aichatHistory.forEach(function (turn) {
+    (turn.parts || []).forEach(function (part) {
+      if (typeof part.text === 'string' && part.text) {
+        lines.push((turn.role === 'user' ? '【管理者】' : '【AI】') + ' ' + part.text);
+      } else if (part.functionCall) {
+        lines.push('（操作：' + part.functionCall.name + '）');
+      }
+    });
+  });
+  var text = lines.length ? lines.join('\n\n') : '（まだ会話がありません）';
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () {
+      toast('会話をコピーしました 📋');
+    }).catch(function () { window.prompt('コピーしてください:', text); });
+  } else {
+    window.prompt('コピーしてください:', text);
+  }
+}
+
 
 function renderAiChatMsg(role, text) {
   var log = document.getElementById('aichat-log');
@@ -4476,7 +4648,7 @@ function sendAiChatMessage() {
   if (!text) return;
   input.value = '';
   renderAiChatMsg('user', text);
-  _aichatHistory.push({ role: 'user', parts: [{ text: text }] });
+  addAiChatTurn({ role: 'user', parts: [{ text: text }] });
   runAiChatTurn();
 }
 
@@ -4513,10 +4685,10 @@ function runAiChatTurn() {
         // thoughtSignatureは中身を変更せず、functionCallと同じpartにそのまま含めて返す必要がある
         var fcPart = { functionCall: res.functionCall };
         if (res.thoughtSignature) fcPart.thoughtSignature = res.thoughtSignature;
-        _aichatHistory.push({ role: 'model', parts: [fcPart] });
+        addAiChatTurn({ role: 'model', parts: [fcPart] });
         handleAiChatFunctionCall(res.functionCall);
       } else {
-        _aichatHistory.push({ role: 'model', parts: [{ text: res.text || '' }] });
+        addAiChatTurn({ role: 'model', parts: [{ text: res.text || '' }] });
         renderAiChatMsg('assistant', res.text || '（応答がありませんでした）');
         setAiChatBusy(false);
       }
@@ -4530,7 +4702,7 @@ function runAiChatTurn() {
 
 function pushAiChatFunctionResponse(name, responseObj) {
   // 現行のGemini APIでは、関数の実行結果は role:'function' ではなく role:'user' で渡す仕様
-  _aichatHistory.push({ role: 'user', parts: [{ functionResponse: { name: name, response: responseObj } }] });
+  addAiChatTurn({ role: 'user', parts: [{ functionResponse: { name: name, response: responseObj } }] });
 }
 
 function handleAiChatFunctionCall(fc) {
