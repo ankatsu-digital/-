@@ -579,6 +579,11 @@
                   <button id="tab-visual" onclick="switchEditorMode('visual')" style="padding:.4rem .9rem;font-size:.78rem;font-weight:600;background:var(--green);color:#fff;border:none;cursor:pointer">✏️ ビジュアル</button>
                   <button id="tab-html"   onclick="switchEditorMode('html')"   style="padding:.4rem .9rem;font-size:.78rem;font-weight:600;background:var(--bg);color:var(--muted);border:none;cursor:pointer">🖥 HTML直接入力</button>
                 </div>
+                <div style="display:flex;align-items:center;gap:.6rem;margin:.5rem 0">
+                  <button type="button" class="btn btn-o btn-sm" id="proofread-btn" onclick="proofreadArticleForm()">✨ AIで文章チェック（誤字脱字・言い回し）</button>
+                  <span id="proofread-status" style="font-size:.78rem;color:var(--muted)"></span>
+                </div>
+                <div id="proofread-result" style="display:none;margin-bottom:.75rem"></div>
                 <!-- ビジュアルエディタ -->
                 <div id="editor-visual">
                   <div class="ebar" style="border-radius:0">
@@ -3171,6 +3176,14 @@ async function pubArticle() {
   if (!d.body||d.body==='<br>') { toast('本文を入力してください','warn'); return; }
   if (d.unlisted && !d.accessPassword) { toast('限定公開にする場合はパスワードを入力してください（自動生成も使えます）','warn'); return; }
 
+  if (!editingId) {
+    var similarArts = findSimilarArticles(d.title);
+    if (similarArts.length) {
+      var proceedDup = confirm('似たタイトルの記事が既にあります：\n' + similarArts.map(function(s){ return '・' + s.title; }).join('\n') + '\n\nこのまま投稿しますか？');
+      if (!proceedDup) return;
+    }
+  }
+
   var scheduleOn = document.getElementById('f-schedule').checked;
   var publishAtVal = document.getElementById('f-publish-at').value;
   if (scheduleOn) {
@@ -4453,6 +4466,94 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ============================================================
+// 記事タイトルの重複・類似チェック（文字バイグラムのJaccard類似度）
+// ============================================================
+function charBigrams(str) {
+  var s = String(str || '').replace(/\s+/g, '');
+  var set = {};
+  for (var i = 0; i < s.length - 1; i++) set[s.substr(i, 2)] = true;
+  return set;
+}
+function titleSimilarity(a, b) {
+  var A = charBigrams(a), B = charBigrams(b);
+  var keysA = Object.keys(A), keysB = Object.keys(B);
+  if (!keysA.length || !keysB.length) return 0;
+  var inter = 0;
+  keysA.forEach(function (k) { if (B[k]) inter++; });
+  var union = keysA.length + keysB.length - inter;
+  return union ? inter / union : 0;
+}
+function findSimilarArticles(title, threshold) {
+  threshold = threshold || 0.35;
+  return articles.map(function (a) { return { id: a.id, title: a.title, similarity: titleSimilarity(title, a.title || '') }; })
+    .filter(function (x) { return x.similarity >= threshold; })
+    .sort(function (x, y) { return y.similarity - x.similarity; })
+    .slice(0, 3);
+}
+
+// ============================================================
+// 通常の記事フォーム用：AIによる文章チェック（誤字脱字・言い回し）
+// ============================================================
+function proofreadArticleForm() {
+  var title = document.getElementById('f-title').value.trim();
+  var body = getBodyHtml();
+  if (!title && !body) { alert('タイトルまたは本文を入力してください'); return; }
+
+  var btn = document.getElementById('proofread-btn');
+  var statusEl = document.getElementById('proofread-status');
+  var resultEl = document.getElementById('proofread-result');
+  btn.disabled = true;
+  statusEl.textContent = '✨ チェック中…';
+  resultEl.style.display = 'none';
+
+  fetch(SUBMIT_GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ type: 'admin_proofread', secret: ADMIN_API_SECRET, title: title, body: body })
+  }).then(function (r) { return r.json(); })
+    .then(function (res) {
+      btn.disabled = false;
+      statusEl.textContent = '';
+      if (!res.ok) { alert('チェックに失敗しました：' + res.error); return; }
+      renderProofreadResult(res, title, body);
+    })
+    .catch(function (e) {
+      btn.disabled = false;
+      statusEl.textContent = '';
+      alert('通信に失敗しました：' + e.message);
+    });
+}
+
+function renderProofreadResult(res, origTitle, origBody) {
+  var resultEl = document.getElementById('proofread-result');
+  resultEl.style.display = 'block';
+
+  if (!res.hasIssues) {
+    resultEl.innerHTML = '<div style="background:var(--gpale);border:1px solid var(--green2);border-radius:6px;padding:.75rem 1rem;font-size:.85rem;color:var(--green)">✅ 特に指摘はありませんでした。</div>';
+    return;
+  }
+
+  var correctedTitle = res.correctedTitle && res.correctedTitle !== origTitle ? res.correctedTitle : '';
+  var correctedBody = res.correctedBody && res.correctedBody !== origBody ? res.correctedBody : '';
+
+  resultEl.innerHTML = '<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:.9rem 1rem;font-size:.85rem;color:#856404">'
+    + '<b>🔍 AIからの指摘</b><br>' + (res.issueSummary || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
+    + (correctedTitle || correctedBody
+        ? '<div style="margin-top:.7rem"><button class="btn btn-g btn-sm" id="proofread-apply-btn" onclick="applyProofreadFix(' + "'" + encodeURIComponent(correctedTitle) + "','" + encodeURIComponent(correctedBody) + "'" + ')">✅ 修正案を反映する</button></div>'
+        : '')
+    + '</div>';
+}
+
+function applyProofreadFix(encTitle, encBody) {
+  var correctedTitle = decodeURIComponent(encTitle);
+  var correctedBody = decodeURIComponent(encBody);
+  if (correctedTitle) document.getElementById('f-title').value = correctedTitle;
+  if (correctedBody) setBodyHtml(correctedBody);
+  var btn = document.getElementById('proofread-apply-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '✅ 反映しました'; }
+}
+
+// ============================================================
 // AIアシスタント（管理者専用チャット・Function Calling）
 // ============================================================
 var _aichatHistory = [];
@@ -4769,8 +4870,112 @@ function handleAiChatFunctionCall(fc) {
   }
 
   if (name === 'request_delete_article') {
-    showAiChatDeleteConfirm(args.id, args.title || '（タイトル不明）');
+    showAiChatDeleteConfirm('articles', args.id, args.title || '（タイトル不明）', name);
     return; // ユーザーが確認ボタンを押すまで、ここでは runAiChatTurn() を呼ばない
+  }
+
+  // ---- 地図スポット（アンカツMAP） ----
+  if (name === 'search_spots') {
+    var termsS = (args.query || '').toLowerCase().split(/\s+/).filter(Boolean);
+    var resultsS = spots.filter(function (s) {
+      var hay = [s.title || '', s.category2 || '', s.address || '', (Array.isArray(s.tags) ? s.tags.join(' ') : ''), s.description || ''].join(' ').toLowerCase();
+      return termsS.some(function (t) { return hay.indexOf(t) >= 0; });
+    }).slice(0, 15).map(function (s) {
+      return { id: s.id, title: s.title, type: s.type, category2: s.category2, address: s.address };
+    });
+    renderAiChatSystem('🔍 スポット「' + args.query + '」で検索：' + resultsS.length + '件見つかりました');
+    pushAiChatFunctionResponse(name, { results: resultsS });
+    runAiChatTurn();
+    return;
+  }
+
+  if (name === 'propose_spot') {
+    if (typeof args.lat !== 'number' || typeof args.lng !== 'number') {
+      renderAiChatSystem('❌ 緯度・経度が指定されていません');
+      pushAiChatFunctionResponse(name, { ok: false, error: 'lat/lng missing' });
+      runAiChatTurn();
+      return;
+    }
+    showAiChatSpotProposal({
+      title: args.title || '', type: args.type || 'sightseeing', category2: args.category2 || '',
+      lat: args.lat, lng: args.lng, address: args.address || '', description: args.description || '',
+      tags: Array.isArray(args.tags) ? args.tags : []
+    });
+    return;
+  }
+
+  if (name === 'edit_spot') {
+    var idS = args.id;
+    var fieldsS = {};
+    ['title', 'category2', 'address', 'description'].forEach(function (k) { if (args[k] !== undefined) fieldsS[k] = args[k]; });
+    if (Array.isArray(args.tags)) fieldsS.tags = args.tags;
+    if (!idS || !Object.keys(fieldsS).length) {
+      renderAiChatSystem('❌ 編集するスポット、または変更内容が指定されていません');
+      pushAiChatFunctionResponse(name, { ok: false, error: 'id or fields missing' });
+      runAiChatTurn();
+      return;
+    }
+    window._updateDoc('spots', idS, fieldsS).then(function () {
+      renderAiChatSystem('✅ スポットを更新しました');
+      pushAiChatFunctionResponse(name, { ok: true, id: idS });
+      return loadSpots();
+    }).then(function () {
+      runAiChatTurn();
+    }).catch(function (e) {
+      renderAiChatSystem('❌ 更新に失敗しました：' + e.message);
+      pushAiChatFunctionResponse(name, { ok: false, error: String(e) });
+      runAiChatTurn();
+    });
+    return;
+  }
+
+  if (name === 'request_delete_spot') {
+    showAiChatDeleteConfirm('spots', args.id, args.title || '（名称不明）', name);
+    return;
+  }
+
+  // ---- 執筆者紹介 ----
+  if (name === 'search_authors') {
+    var termsAu = (args.query || '').toLowerCase().split(/\s+/).filter(Boolean);
+    var resultsAu = authors.filter(function (au) {
+      var hay = (au.name || '').toLowerCase();
+      return termsAu.some(function (t) { return hay.indexOf(t) >= 0; });
+    }).slice(0, 15).map(function (au) {
+      return { id: au.id, name: au.name, bio: (au.bio || '').slice(0, 60) };
+    });
+    renderAiChatSystem('🔍 執筆者「' + args.query + '」で検索：' + resultsAu.length + '件見つかりました');
+    pushAiChatFunctionResponse(name, { results: resultsAu });
+    runAiChatTurn();
+    return;
+  }
+
+  if (name === 'propose_author') {
+    showAiChatAuthorProposal({ name: args.name || '', bio: args.bio || '', photo: args.photo || '' });
+    return;
+  }
+
+  if (name === 'edit_author') {
+    var idAu = args.id;
+    var fieldsAu = {};
+    ['name', 'bio', 'photo'].forEach(function (k) { if (args[k] !== undefined) fieldsAu[k] = args[k]; });
+    if (!idAu || !Object.keys(fieldsAu).length) {
+      renderAiChatSystem('❌ 編集する執筆者、または変更内容が指定されていません');
+      pushAiChatFunctionResponse(name, { ok: false, error: 'id or fields missing' });
+      runAiChatTurn();
+      return;
+    }
+    window._updateDoc('authors', idAu, fieldsAu).then(function () {
+      renderAiChatSystem('✅ 執筆者紹介を更新しました');
+      pushAiChatFunctionResponse(name, { ok: true, id: idAu });
+      return loadAuthors();
+    }).then(function () {
+      runAiChatTurn();
+    }).catch(function (e) {
+      renderAiChatSystem('❌ 更新に失敗しました：' + e.message);
+      pushAiChatFunctionResponse(name, { ok: false, error: String(e) });
+      runAiChatTurn();
+    });
+    return;
   }
 
   // 未知の関数呼び出し（想定外のケース）
@@ -4790,6 +4995,19 @@ function stripStrayMarkdown(html) {
 function showAiChatArticleProposal(draft) {
   draft.body = stripStrayMarkdown(draft.body);
   var log = document.getElementById('aichat-log');
+
+  var similar = findSimilarArticles(draft.title);
+  if (similar.length) {
+    var warnDiv = document.createElement('div');
+    warnDiv.className = 'aichat-confirm';
+    warnDiv.style.background = '#fff3cd';
+    warnDiv.style.borderColor = '#ffc107';
+    warnDiv.style.color = '#856404';
+    warnDiv.innerHTML = '⚠️ <b>似たタイトルの記事が既にあります</b><br>'
+      + similar.map(function (s) { return '・' + String(s.title).replace(/</g, '&lt;').replace(/>/g, '&gt;'); }).join('<br>');
+    log.appendChild(warnDiv);
+  }
+
   var div = document.createElement('div');
   div.className = 'aichat-confirm';
   var escTitle = String(draft.title).replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -4867,7 +5085,7 @@ function confirmAiChatArticle(draft, doPost, wrapEl) {
   });
 }
 
-function showAiChatDeleteConfirm(id, title) {
+function showAiChatDeleteConfirm(collection, id, title, fnName) {
   var log = document.getElementById('aichat-log');
   var div = document.createElement('div');
   div.className = 'aichat-confirm';
@@ -4877,14 +5095,21 @@ function showAiChatDeleteConfirm(id, title) {
     + '<button class="btn btn-r btn-sm" data-act="yes">🗑️ 削除する</button>'
     + '<button class="btn btn-o btn-sm" data-act="no">キャンセル</button>'
     + '</div>';
-  div.querySelector('[data-act="yes"]').addEventListener('click', function () { confirmAiChatDelete(id, title, true, div); });
-  div.querySelector('[data-act="no"]').addEventListener('click', function () { confirmAiChatDelete(id, title, false, div); });
+  div.querySelector('[data-act="yes"]').addEventListener('click', function () { confirmAiChatDelete(collection, id, fnName, true, div); });
+  div.querySelector('[data-act="no"]').addEventListener('click', function () { confirmAiChatDelete(collection, id, fnName, false, div); });
   log.appendChild(div);
   log.scrollTop = log.scrollHeight;
   setAiChatBusy(true); // ユーザーがボタンを押すまで、次のメッセージ送信はブロックしておく
 }
 
-function confirmAiChatDelete(id, title, doDelete, wrapEl) {
+function reloadCollectionAfterChange(collection) {
+  if (collection === 'articles') return loadArticles();
+  if (collection === 'spots') return loadSpots();
+  if (collection === 'authors') return loadAuthors();
+  return Promise.resolve();
+}
+
+function confirmAiChatDelete(collection, id, fnName, doDelete, wrapEl) {
   wrapEl.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
   var resultEl = document.createElement('div');
   resultEl.className = 'result';
@@ -4893,22 +5118,136 @@ function confirmAiChatDelete(id, title, doDelete, wrapEl) {
   if (!doDelete) {
     resultEl.style.color = 'var(--muted)';
     resultEl.textContent = 'キャンセルしました';
-    pushAiChatFunctionResponse('request_delete_article', { ok: false, cancelled: true });
+    pushAiChatFunctionResponse(fnName, { ok: false, cancelled: true });
     runAiChatTurn();
     return;
   }
 
-  window._deleteDoc('articles', id).then(function () {
+  window._deleteDoc(collection, id).then(function () {
     resultEl.style.color = 'var(--green)';
     resultEl.textContent = '✅ 削除しました';
-    pushAiChatFunctionResponse('request_delete_article', { ok: true, id: id });
-    return loadArticles();
+    pushAiChatFunctionResponse(fnName, { ok: true, id: id });
+    return reloadCollectionAfterChange(collection);
   }).then(function () {
     runAiChatTurn();
   }).catch(function (e) {
     resultEl.style.color = 'var(--red)';
     resultEl.textContent = '❌ 削除に失敗しました：' + e.message;
-    pushAiChatFunctionResponse('request_delete_article', { ok: false, error: String(e) });
+    pushAiChatFunctionResponse(fnName, { ok: false, error: String(e) });
+    runAiChatTurn();
+  });
+}
+
+// ---- 地図スポットの提案カード ----
+var SPOT_TYPE_LABELS_AICHAT = { event: '🎉 イベント', akiya: '🏠 空き家', food: '🍴 飲食', facility: '🏛️ 施設', sightseeing: '⛩️ 観光' };
+
+function showAiChatSpotProposal(draft) {
+  var log = document.getElementById('aichat-log');
+  var div = document.createElement('div');
+  div.className = 'aichat-confirm';
+  var escTitle = String(draft.title).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  var escDesc = String(draft.description || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  div.innerHTML = '📍 <b>地図スポット案</b><br>'
+    + '<div style="margin-top:.5rem"><b>' + escTitle + '</b></div>'
+    + '<div style="font-size:.78rem;color:var(--muted);margin:.2rem 0 .5rem">'
+      + (SPOT_TYPE_LABELS_AICHAT[draft.type] || draft.type) + (draft.category2 ? '　' + draft.category2 : '') + '</div>'
+    + '<div style="font-size:.8rem;color:var(--text)">'
+      + (draft.address ? '📮 ' + draft.address + '<br>' : '')
+      + '📍 ' + draft.lat + ', ' + draft.lng + (draft.tags.length ? '<br>🏷️ ' + draft.tags.join('、') : '')
+      + (escDesc ? '<br>' + escDesc : '')
+      + '</div>'
+    + '<div class="acts">'
+    + '<button class="btn btn-g btn-sm" data-act="yes">✅ この内容で登録する</button>'
+    + '<button class="btn btn-o btn-sm" data-act="no">この案は使わない</button>'
+    + '</div>';
+  div.querySelector('[data-act="yes"]').addEventListener('click', function () { confirmAiChatSpot(draft, true, div); });
+  div.querySelector('[data-act="no"]').addEventListener('click', function () { confirmAiChatSpot(draft, false, div); });
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  setAiChatBusy(true);
+}
+
+function confirmAiChatSpot(draft, doPost, wrapEl) {
+  wrapEl.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+  var resultEl = document.createElement('div');
+  resultEl.className = 'result';
+  wrapEl.appendChild(resultEl);
+
+  if (!doPost) {
+    resultEl.style.color = 'var(--muted)';
+    resultEl.textContent = 'この案は使いませんでした';
+    pushAiChatFunctionResponse('propose_spot', { ok: false, posted: false });
+    runAiChatTurn();
+    return;
+  }
+
+  var newSpot = {
+    title: draft.title, type: draft.type, category2: draft.category2,
+    lat: draft.lat, lng: draft.lng, address: draft.address, description: draft.description,
+    tags: draft.tags, published: true
+  };
+  window._addDoc('spots', newSpot).then(function (ref) {
+    resultEl.style.color = 'var(--green)';
+    resultEl.textContent = '✅ スポットを登録しました';
+    pushAiChatFunctionResponse('propose_spot', { ok: true, posted: true, id: ref.id, title: newSpot.title });
+    return loadSpots();
+  }).then(function () {
+    runAiChatTurn();
+  }).catch(function (e) {
+    resultEl.style.color = 'var(--red)';
+    resultEl.textContent = '❌ 登録に失敗しました：' + e.message;
+    pushAiChatFunctionResponse('propose_spot', { ok: false, error: String(e) });
+    runAiChatTurn();
+  });
+}
+
+// ---- 執筆者紹介の提案カード ----
+function showAiChatAuthorProposal(draft) {
+  var log = document.getElementById('aichat-log');
+  var div = document.createElement('div');
+  div.className = 'aichat-confirm';
+  var escName = String(draft.name).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  var escBio = String(draft.bio || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  div.innerHTML = '✍️ <b>執筆者紹介の案</b><br>'
+    + '<div style="margin-top:.5rem"><b>' + escName + '</b></div>'
+    + (escBio ? '<div style="font-size:.82rem;color:var(--text);margin-top:.3rem">' + escBio + '</div>' : '')
+    + '<div class="acts">'
+    + '<button class="btn btn-g btn-sm" data-act="yes">✅ この内容で登録する</button>'
+    + '<button class="btn btn-o btn-sm" data-act="no">この案は使わない</button>'
+    + '</div>';
+  div.querySelector('[data-act="yes"]').addEventListener('click', function () { confirmAiChatAuthor(draft, true, div); });
+  div.querySelector('[data-act="no"]').addEventListener('click', function () { confirmAiChatAuthor(draft, false, div); });
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  setAiChatBusy(true);
+}
+
+function confirmAiChatAuthor(draft, doPost, wrapEl) {
+  wrapEl.querySelectorAll('button').forEach(function (b) { b.disabled = true; });
+  var resultEl = document.createElement('div');
+  resultEl.className = 'result';
+  wrapEl.appendChild(resultEl);
+
+  if (!doPost) {
+    resultEl.style.color = 'var(--muted)';
+    resultEl.textContent = 'この案は使いませんでした';
+    pushAiChatFunctionResponse('propose_author', { ok: false, posted: false });
+    runAiChatTurn();
+    return;
+  }
+
+  var newAuthor = { name: draft.name, bio: draft.bio, photo: draft.photo };
+  window._addDoc('authors', newAuthor).then(function (ref) {
+    resultEl.style.color = 'var(--green)';
+    resultEl.textContent = '✅ 執筆者紹介を登録しました';
+    pushAiChatFunctionResponse('propose_author', { ok: true, posted: true, id: ref.id, name: newAuthor.name });
+    return loadAuthors();
+  }).then(function () {
+    runAiChatTurn();
+  }).catch(function (e) {
+    resultEl.style.color = 'var(--red)';
+    resultEl.textContent = '❌ 登録に失敗しました：' + e.message;
+    pushAiChatFunctionResponse('propose_author', { ok: false, error: String(e) });
     runAiChatTurn();
   });
 }
